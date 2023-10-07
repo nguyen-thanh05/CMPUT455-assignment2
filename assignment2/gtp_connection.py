@@ -48,10 +48,11 @@ class GtpConnection:
         self.white_priority = {"unknown": 3, "w": 2, "draw": 1, "b": 0, "N/A": -1}
         self.timelimit = 1
         self.startTime = 0
-        
+
         self._debug_mode: bool = debug_mode
         self.go_engine = go_engine
         self.board: GoBoard = board
+        self.transposition = dict()
         self.commands: Dict[str, Callable[[List[str]], None]] = {
             "protocol_version": self.protocol_version_cmd,
             "quit": self.quit_cmd,
@@ -310,6 +311,23 @@ class GtpConnection:
         else:
             self.respond("unknown")
         return
+
+    def hash_board(self):
+        pass
+
+    def set_transposition(self):
+        self.transposition[self.board.size] = self.board.size not in \
+                                              self.transposition and dict() or \
+                                              self.transposition[self.board.size]
+        self.transposition[self.board.size][self.board.get_captures(BLACK)] = \
+            self.board.get_captures not in \
+            self.transposition[self.board.size] and dict() or \
+            self.transposition[self.board.size][self.board.get_captures(BLACK)]
+
+        self.transposition[self.board.size][self.board.get_captures(BLACK)][self.board.get_captures(WHITE)] = \
+            self.board.get_captures(BLACK) not in \
+            self.transposition[self.board.size][self.board.get_captures(BLACK)] and dict() or \
+            self.transposition[self.board.size][self.board.get_captures(BLACK)][self.board.get_captures(WHITE)]
 
     def gogui_rules_legal_moves_cmd(self, args: List[str]) -> None:
         """ We already implemented this function for Assignment 2 """
