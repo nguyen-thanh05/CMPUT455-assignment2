@@ -32,6 +32,7 @@ from board import GoBoard
 from board_util import GoBoardUtil
 from engine import GoEngine
 
+
 class GtpConnection:
     def __init__(self, go_engine: GoEngine, board: GoBoard, debug_mode: bool = False) -> None:
         """
@@ -40,12 +41,12 @@ class GtpConnection:
         Parameters
         ----------
         go_engine:
-            a program that can reply to a set of GTP commandsbelow
+            a program that can reply to a set of GTP commands below
         board: 
             Represents the current board state.
         """
-        self.BlackPriority = {"unknown": 3,"b": 2,"draw" : 1,"w": 0, "N/A": -1}
-        self.WhitePriority = {"unknown": 3,"w": 2,"draw" : 1,"b": 0, "N/A": -1}
+        self.black_priority = {"unknown": 3, "b": 2, "draw": 1, "w": 0, "N/A": -1}
+        self.white_priority = {"unknown": 3, "w": 2, "draw": 1, "b": 0, "N/A": -1}
         self.timelimit = 1
         self.startTime = 0
         
@@ -248,6 +249,7 @@ class GtpConnection:
     Assignment 2 - commands we already implemented for you
     ==========================================================================
     """
+
     def gogui_analyze_cmd(self, args: List[str]) -> None:
         """ We already implemented this function for Assignment 2 """
         self.respond("pstring/Legal Moves For ToPlay/gogui-rules_legal_moves\n"
@@ -275,10 +277,10 @@ class GtpConnection:
         """ We already implemented this function for Assignment 2 """
         size = self.board.size
         str = ''
-        for row in range(size-1, -1, -1):
+        for row in range(size - 1, -1, -1):
             start = self.board.row_start(row + 1)
             for i in range(size):
-                #str += '.'
+                # str += '.'
                 point = self.board.board[start + i]
                 if point == BLACK:
                     str += 'X'
@@ -290,7 +292,6 @@ class GtpConnection:
                     assert False
             str += '\n'
         self.respond(str)
-
 
     def gogui_rules_final_result_cmd(self, args: List[str]) -> None:
         """ We already implemented this function for Assignment 2 """
@@ -314,8 +315,8 @@ class GtpConnection:
     def gogui_rules_legal_moves_cmd(self, args: List[str]) -> None:
         """ We already implemented this function for Assignment 2 """
         if (self.board.detect_five_in_a_row() != EMPTY) or \
-            (self.board.get_captures(BLACK) >= 10) or \
-            (self.board.get_captures(WHITE) >= 10):
+                (self.board.get_captures(BLACK) >= 10) or \
+                (self.board.get_captures(WHITE) >= 10):
             self.respond("")
             return
         legal_moves = self.board.get_empty_points()
@@ -336,7 +337,7 @@ class GtpConnection:
                 return
             coord = move_to_coord(args[1], self.board.size)
             move = coord_to_point(coord[0], coord[1], self.board.size)
-            
+
             color = color_to_int(board_color)
             if not self.board.play_move(move, color):
                 # self.respond("Illegal Move: {}".format(board_move))
@@ -357,7 +358,7 @@ class GtpConnection:
 
     def gogui_rules_captured_count_cmd(self, args: List[str]) -> None:
         """ We already implemented this function for Assignment 2 """
-        self.respond(str(self.board.get_captures(WHITE))+' '+str(self.board.get_captures(BLACK)))
+        self.respond(str(self.board.get_captures(WHITE)) + ' ' + str(self.board.get_captures(BLACK)))
 
     """
     ==========================================================================
@@ -382,22 +383,21 @@ class GtpConnection:
         if legal_moves.size == 0:
             self.respond("pass")
             return
-        
 
         self.startTime = time.time()
-        
-        CurrentBoard = np.copy(self.board.board)
-        CurrentWhiteCaptures = self.board.white_captures
-        CurrentBlackCaptures = self.board.black_captures
-        
-        Res = self.Minimax(self.board.current_player, True)
-        
-        self.board = CurrentBoard
-        self.board.white_captures = CurrentWhiteCaptures
-        self.board.black_captures = CurrentBlackCaptures
 
-        if Res[0] == board_color or Res[0] == "draw":
-            move_coord = point_to_coord(Res[1], self.board.size)
+        current_board = self.board.copy()
+        current_white_captures = self.board.white_captures
+        current_black_captures = self.board.black_captures
+
+        res = self.minimax(self.board.current_player, True)
+
+        self.board = current_board
+        self.board.white_captures = current_white_captures
+        self.board.black_captures = current_black_captures
+
+        if res[0] == board_color or res[0] == "draw":
+            move_coord = point_to_coord(res[1], self.board.size)
             move_as_string = format_point(move_coord)
             self.play_cmd([board_color, move_as_string, 'print_move'])
         else:
@@ -407,14 +407,15 @@ class GtpConnection:
             move_coord = point_to_coord(move, self.board.size)
             move_as_string = format_point(move_coord)
             self.play_cmd([board_color, move_as_string, 'print_move'])
-    
+
     def timelimit_cmd(self, args: List[str]) -> None:
         if args[0].isnumeric():
             timevar = int(args[0])
-            if timevar >= 1 and timevar <= 100:
+            if 1 <= timevar <= 100:
                 self.timelimit = timevar
-    
-    def who_won(self, Color):
+        self.respond()
+
+    def who_won(self, color):
         if time.time() - self.startTime >= self.timelimit:
             return "unknown"
         result1 = self.board.detect_five_in_a_row()
@@ -433,162 +434,164 @@ class GtpConnection:
             return "draw"
         else:
             return False
-        
-    def get_moves(self,Color):
-        CurrentWhiteCaptures = self.board.get_captures(WHITE)
-        CurrentBlackCaptures = self.board.get_captures(BLACK)
 
-        Check = None
-        if Color == BLACK:
+    def get_moves(self, color):
+        current_white_captures = self.board.get_captures(WHITE)
+        current_black_captures = self.board.get_captures(BLACK)
+
+        check = None
+        if color == BLACK:
             # This part is for immediate win
-            Check = self.board.pattern_check(("EBBBB",[0])) or self.board.pattern_check(("BEBBB",[1])) or self.board.pattern_check(("BBEBB",[2])) or self.board.pattern_check(("BBBEB",[3])) or self.board.pattern_check(("BBBBE",[4]))
+            check = self.board.pattern_check(("EBBBB", [0])) or self.board.pattern_check(
+                ("BEBBB", [1])) or self.board.pattern_check(("BBEBB", [2])) or self.board.pattern_check(
+                ("BBBEB", [3])) or self.board.pattern_check(("BBBBE", [4]))
 
-            if CurrentBlackCaptures >= 8:
-                Check = Check or self.board.pattern_check(("BWWE",[3])) or self.board.pattern_check(("EWWB",[0]))
+            if current_black_captures >= 8:
+                check = check or self.board.pattern_check(("BWWE", [3])) or self.board.pattern_check(("EWWB", [0]))
 
-            
             # This part is for block immediate win
-            if CurrentWhiteCaptures >= 8:
-                Check = Check or self.board.pattern_check(("WBBE",[3])) or self.board.pattern_check(("EBBW",[0]))
-            
-            Check = self.board.pattern_check(("EWWWW",[0])) or self.board.pattern_check(("WEWWW",[1])) or self.board.pattern_check(("WWEWW",[2])) or self.board.pattern_check(("WWWEW",[3])) or self.board.pattern_check(("WWWWE",[4]))
-            
-            # This part is for win in 2 moves
-            Check = Check or self.board.pattern_check(("EBBBEE",[4])) or self.board.pattern_check(("EEBBBE",[1]))
-            Check = Check or self.board.pattern_check(("EBBEBE",[3])) or self.board.pattern_check(("EBEBBE",[2]))
-            
+            if current_white_captures >= 8:
+                check = check or self.board.pattern_check(("WBBE", [3])) or self.board.pattern_check(("EBBW", [0]))
+
+            check = self.board.pattern_check(("EWWWW", [0])) or self.board.pattern_check(
+                ("WEWWW", [1])) or self.board.pattern_check(("WWEWW", [2])) or self.board.pattern_check(
+                ("WWWEW", [3])) or self.board.pattern_check(("WWWWE", [4]))
+
+
         else:
             # This first part is for immediate win
-            Check = self.board.pattern_check(("EWWWW",[0])) or self.board.pattern_check(("WEWWW",[1])) or self.board.pattern_check(("WWEWW",[2])) or self.board.pattern_check(("WWWEW",[3])) or self.board.pattern_check(("WWWWE",[4]))
+            check = self.board.pattern_check(("EWWWW", [0])) or self.board.pattern_check(
+                ("WEWWW", [1])) or self.board.pattern_check(("WWEWW", [2])) or self.board.pattern_check(
+                ("WWWEW", [3])) or self.board.pattern_check(("WWWWE", [4]))
 
-            if CurrentWhiteCaptures >= 8:
-                Check = Check or self.board.pattern_check(("WBBE",[3])) or self.board.pattern_check(("EBBW",[0]))
+            if current_white_captures >= 8:
+                check = check or self.board.pattern_check(("WBBE", [3])) or self.board.pattern_check(("EBBW", [0]))
 
-            
             # This part is for block immediate win
-            if CurrentBlackCaptures >= 8:
-                Check = Check or self.board.pattern_check(("BWWE",[3])) or self.board.pattern_check(("EWWB",[0]))
-            
-            Check = self.board.pattern_check(("EBBBB",[0])) or self.board.pattern_check(("BEBBB",[1])) or self.board.pattern_check(("BBEBB",[2])) or self.board.pattern_check(("BBBEB",[3])) or self.board.pattern_check(("BBBBE",[4]))
-            
-            # This part is for win in 2 moves
-            Check = Check or self.board.pattern_check(("EWWWEE",[4])) or self.board.pattern_check(("EEWWWE",[1]))
-            Check = Check or self.board.pattern_check(("EWWEWE",[3])) or self.board.pattern_check(("EWEWWE",[2]))
+            if current_black_captures >= 8:
+                check = check or self.board.pattern_check(("BWWE", [3])) or self.board.pattern_check(("EWWB", [0]))
 
-        if Check:
-            return Check
+            check = self.board.pattern_check(("EBBBB", [0])) or self.board.pattern_check(
+                ("BEBBB", [1])) or self.board.pattern_check(("BBEBB", [2])) or self.board.pattern_check(
+                ("BBBEB", [3])) or self.board.pattern_check(("BBBBE", [4]))
+
+        if check:
+            return check
         else:
             return self.board.get_empty_points()
 
-    def get_best_value(self,Color,ValOne,ValTwo):
-        if Color == WHITE:
-            if self.WhitePriority[ValOne] >= self.WhitePriority[ValTwo]:
-                return ValOne
+    def get_best_value(self, color, val_one, val_two):
+        if color == WHITE:
+            if self.white_priority[val_one] >= self.white_priority[val_two]:
+                return val_one
             else:
-                return ValTwo
+                return val_two
         else:
-            if self.BlackPriority[ValOne] >= self.BlackPriority[ValTwo]:
-                return ValOne
+            if self.black_priority[val_one] >= self.black_priority[val_two]:
+                return val_one
             else:
-                return ValTwo
-    
-    def Minimax(self, Color, ReturnMove = False, Alpha = "N/A", Beta = "N/A"):
-        Alpha = Alpha
-        Beta = Beta
-        Move = PASS
-        
-        CurrentBoard = np.copy(self.board.board)
-        CurrentWhiteCaptures = self.board.white_captures
-        CurrentBlackCaptures = self.board.black_captures
+                return val_two
 
-        Moves = self.get_moves(Color)
-        
-        Res = self.who_won(Color)
-        if Res:
-            #print(Res)
-            return Res
-        
-        if Color == WHITE:
-            Val = "N/A" # Lowest Priority
-            for i in Moves:
-                Move = i
+    def minimax(self, color, return_move=False, a="N/A", b="N/A"):
+        alpha = a
+        beta = b
+        move = PASS
 
-                self.board.board = np.copy(CurrentBoard)
-                self.board.white_captures = CurrentWhiteCaptures
-                self.board.black_captures = CurrentBlackCaptures
+        current_board = np.copy(self.board.board)
+        current_white_captures = self.board.white_captures
+        current_black_captures = self.board.black_captures
 
-                self.board.play_move(i, Color)
-                #time.sleep(0.1)
-                #print(self.board2d())
-                #print()
+        moves = self.get_moves(color)
 
-                Val = self.get_best_value(Color, Val, self.Minimax(BLACK,False,Alpha,Beta))
-                Alpha = self.get_best_value(Color, Alpha, Val)
-                if ((Alpha != "N/A" and Beta != "N/A") and (Beta == Alpha or Beta == "b" or Alpha == "w")) or Beta == "unknown" or Alpha == "unknown":
-                    #print(Alpha,Beta)
+        res = self.who_won(color)
+        if res:
+            # print(res)
+            return res
+
+        if color == WHITE:
+            val = "N/A"  # Lowest Priority
+            for i in moves:
+                move = i
+
+                self.board.board = np.copy(current_board)
+                self.board.white_captures = current_white_captures
+                self.board.black_captures = current_black_captures
+
+                self.board.play_move(i, color)
+                # time.sleep(0.1)
+                # print(self.board2d())
+                # print()
+
+                val = self.get_best_value(color, val, self.minimax(BLACK, False, alpha, beta))
+                alpha = self.get_best_value(color, alpha, val)
+                if val == 'w' or ((alpha != "N/A" and beta != "N/A") and (
+                        beta == alpha or beta == "b" or alpha == "w")) or beta == "unknown" or alpha == "unknown":
+                    # print(alpha,beta)
                     break
-            
-            self.board.board = np.copy(CurrentBoard)
-            self.board.white_captures = CurrentWhiteCaptures
-            self.board.black_captures = CurrentBlackCaptures
-            
-            if ReturnMove:
-                return (Val, Move)
+
+            self.board.board = np.copy(current_board)
+            self.board.white_captures = current_white_captures
+            self.board.black_captures = current_black_captures
+
+            if return_move:
+                return (val, move)
             else:
-                return Val
+                return val
         else:
-            Val = "N/A" # Lowest Priority
-            for i in Moves:
-                Move = i
-                
-                self.board.board = np.copy(CurrentBoard)
-                self.board.white_captures = CurrentWhiteCaptures
-                self.board.black_captures = CurrentBlackCaptures
+            val = "N/A"  # Lowest Priority
+            for i in moves:
+                move = i
 
-                self.board.play_move(i, Color)
-                #time.sleep(0.1)
-                #print(self.board2d())
-                #print()
+                self.board.board = np.copy(current_board)
+                self.board.white_captures = current_white_captures
+                self.board.black_captures = current_black_captures
 
-                Val = self.get_best_value(Color, Val, self.Minimax(WHITE,False,Alpha,Beta))
-                Beta = self.get_best_value(Color, Beta, Val)
-                if ((Alpha != "N/A" and Beta != "N/A") and (Beta == Alpha or Beta == "b" or Alpha == "w")) or Beta == "unknown" or Alpha == "unknown":
-                    #print(Alpha,Beta)
+                self.board.play_move(i, color)
+                # time.sleep(0.1)
+                # print(self.board2d())
+                # print()
+
+                val = self.get_best_value(color, val, self.minimax(WHITE, False, alpha, beta))
+                beta = self.get_best_value(color, beta, val)
+                if val == 'b' or ((alpha != "N/A" and beta != "N/A") and (
+                        beta == alpha or beta == "b" or alpha == "w")) or beta == "unknown" or alpha == "unknown":
+                    # print(alpha,beta)
                     break
-            
-            self.board.board = np.copy(CurrentBoard)
-            self.board.white_captures = CurrentWhiteCaptures
-            self.board.black_captures = CurrentBlackCaptures
-            
-            if ReturnMove:
-                return (Val, Move)
+
+            self.board.board = np.copy(current_board)
+            self.board.white_captures = current_white_captures
+            self.board.black_captures = current_black_captures
+
+            if return_move:
+                return val, move
             else:
-                return Val
-    
+                return val
+
     def solve_cmd(self, args: List[str]) -> None:
-        Color = self.board.current_player
+        color = self.board.current_player
         self.startTime = time.time()
-        
-        CurrentBoard = np.copy(self.board.board)
-        CurrentWhiteCaptures = self.board.white_captures
-        CurrentBlackCaptures = self.board.black_captures
 
-        Res = self.Minimax(self.board.current_player, True)
+        current_board = self.board.copy()
+        current_white_captures = self.board.white_captures
+        current_black_captures = self.board.black_captures
 
-        self.board.board = CurrentBoard
-        self.board.white_captures = CurrentWhiteCaptures
-        self.board.black_captures = CurrentBlackCaptures
-        
-        if (Res[0] == "b" and Color == BLACK) or (Res[0] == "w" and Color == WHITE) or Res[0] == "draw":
-            self.respond(Res[0] + " " + str( format_point( point_to_coord(Res[1], self.board.size) ) ).lower() )
+        res = self.minimax(self.board.current_player, True)
+
+        self.board.board = current_board
+        self.board.white_captures = current_white_captures
+        self.board.black_captures = current_black_captures
+
+        if (res[0] == "b" and color == BLACK) or (res[0] == "w" and color == WHITE) or res[0] == "draw":
+            self.respond(res[0] + " " + str(format_point(point_to_coord(res[1], self.board.size))).lower())
         else:
-            self.respond(Res[0])
+            self.respond(res[0])
 
     """
     ==========================================================================
     Assignment 1 - game-specific commands end here
     ==========================================================================
     """
+
 
 def point_to_coord(point: GO_POINT, boardsize: int) -> Tuple[int, int]:
     """

@@ -42,6 +42,8 @@ For many more utility functions, see the GoBoardUtil class in board_util.py.
 The board is stored as a one-dimensional array of GO_POINT in self.board.
 See coord_to_point for explanations of the array encoding.
 """
+
+
 class GoBoard(object):
     def __init__(self, size: int) -> None:
         """
@@ -53,17 +55,30 @@ class GoBoard(object):
         self.black_captures = 0
         self.white_captures = 0
 
+    def __repr__(self):
+        """
+        Returns a string representation of the board with "w", "b", and "."
+        """
+        s = ""
+        for row in range(1, self.size + 1):
+            start = self.row_start(row)
+            for pt in range(start, start + self.size):
+                s += self.board[pt]
+            s += "\n"
+        return s
+
     def add_two_captures(self, color: GO_COLOR) -> None:
         if color == BLACK:
             self.black_captures += 2
         elif color == WHITE:
             self.white_captures += 2
-    def get_captures(self, color: GO_COLOR) -> None:
+
+    def get_captures(self, color: GO_COLOR) -> int:
         if color == BLACK:
             return self.black_captures
         elif color == WHITE:
             return self.white_captures
-    
+
     def calculate_rows_cols_diags(self) -> None:
         if self.size < 5:
             return
@@ -394,18 +409,19 @@ class GoBoard(object):
             if counter == 5 and prev != EMPTY:
                 return prev
         return EMPTY
-    # Pattern is a string, "E" = Empty, "R" = Return vals, '.' = Placeholder, "B" = Black, "W" = White, "C" = Color
-    def pattern_check(self,patterns):
+    # Pattern is a string, "E" = Empty, "R" = Return vals, '.' = Placeholder, "B" = Black, "W" = White, "C" = color
+
+    def pattern_check(self, patterns):
         for r in self.rows:
-            result = self.pattern_check_list(r,patterns)
+            result = self.pattern_check_list(r, patterns)
             if result:
                 return result
         for c in self.cols:
-            result = self.pattern_check_list(c,patterns)
+            result = self.pattern_check_list(c, patterns)
             if result:
                 return result
         for d in self.diags:
-            result = self.pattern_check_list(d,patterns)
+            result = self.pattern_check_list(d, patterns)
             if result:
                 return result
         return False
