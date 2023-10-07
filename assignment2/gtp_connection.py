@@ -14,7 +14,6 @@ import numpy as np
 import re
 from sys import stdin, stdout, stderr, setrecursionlimit
 from typing import Any, Callable, Dict, List, Tuple
-
 setrecursionlimit(2000000000)
 
 from board_base import (
