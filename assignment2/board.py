@@ -54,17 +54,23 @@ class GoBoard(object):
         self.calculate_rows_cols_diags()
         self.black_captures = 0
         self.white_captures = 0
+        self.string_rep = None
+        self.__repr__()
+        self.removed = None
 
     def __repr__(self):
         """
-        Returns a string representation of the board with "w", "b", and "."
+        Returns a number representation of the board with "w", "b", and "."
         """
-        s = ""
-        for row in range(1, self.size + 1):
-            start = self.row_start(row)
-            for pt in range(start, start + self.size):
-                s += self.board[pt]
-            s += "\n"
+        if self.string_rep != None:
+            return self.string_rep
+        
+        s = 0
+        Mul = 10
+        for i in range(len(self.board)):
+            s += i * Mul
+            Mul *= 10
+        self.string_rep = s
         return s
 
     def add_two_captures(self, color: GO_COLOR) -> None:
@@ -156,6 +162,9 @@ class GoBoard(object):
         self.calculate_rows_cols_diags()
         self.black_captures = 0
         self.white_captures = 0
+        self.string_rep = None
+        self.__repr__()
+        self.removed = None
 
     def copy(self) -> 'GoBoard':
         b = GoBoard(self.size)
@@ -167,6 +176,9 @@ class GoBoard(object):
         b.current_player = self.current_player
         assert b.maxpoint == self.maxpoint
         b.board = np.copy(self.board)
+        b.string_rep = None
+        b.__repr__()
+        b.removed = self.removed
         return b
     
 
@@ -316,6 +328,7 @@ class GoBoard(object):
         if not self._has_liberty(opp_block):
             captures = list(where1d(opp_block))
             self.board[captures] = EMPTY
+            self.string_rep[captures] = EMPTY * (10 ** captures)
             if len(captures) == 1:
                 single_capture = nb_point
         return single_capture
@@ -328,6 +341,7 @@ class GoBoard(object):
         if self.board[point] != EMPTY:
             return False
         self.board[point] = color
+        self.string_rep += int(color) * (4 ** int(point)) # Newly added
         self.current_player = opponent(color)
         self.last2_move = self.last_move
         self.last_move = point
@@ -335,8 +349,14 @@ class GoBoard(object):
         offsets = [1, -1, self.NS, -self.NS, self.NS+1, -(self.NS+1), self.NS-1, -self.NS+1]
         for offset in offsets:
             if self.board[point+offset] == O and self.board[point+(offset*2)] == O and self.board[point+(offset*3)] == color:
+                self.removed = (self.board[point+offset],point+offset,point+(offset*2))
+                
                 self.board[point+offset] = EMPTY
                 self.board[point+(offset*2)] = EMPTY
+
+                self.string_rep -= int(self.removed[0]) * (4 ** int(point+offset)) # Newly added
+                self.string_rep -= int(self.removed[0]) * (4 ** int(point+(offset*2))) # Newly added
+
                 if color == BLACK:
                     self.black_captures += 2
                 else:
@@ -420,6 +440,7 @@ class GoBoard(object):
             result = self.pattern_check_list(c, patterns)
             if result:
                 return result
+        #print("DIAGONALS: ")
         for d in self.diags:
             result = self.pattern_check_list(d, patterns)
             if result:
@@ -428,11 +449,13 @@ class GoBoard(object):
     
     # Possibly change to KMP pattern matching
     def pattern_check_list(self,listInp,patterns):
+        #print()
         for i in range(len(listInp)-len(patterns[0]) + 1):
             j = 0
             for q in range(i,i+len(patterns[0])):
                 stone = listInp[q]
                 
+                #print(self.get_color(stone),patterns[0][j], BLACK, WHITE, patterns[0][j], j, patterns)
                 if int(self.get_color(stone)) == BLACK and (patterns[0][j] == 'C' or patterns[0][j] == 'B'):
                     j = j + 1
                 elif int(self.get_color(stone)) == WHITE and (patterns[0][j] == 'C' or patterns[0][j] == 'W'):
@@ -443,8 +466,11 @@ class GoBoard(object):
                     j = 0
                     break
                 if j == len(patterns[0]):
+                    #print("HAS FOUND!!!\n\n\n")
                     Ret = []
                     for v in patterns[1]:
+                        #print("FOUND: ",listInp[1+q+v-len(patterns[0])])
+                        #print(self.board.__repr__(),listInp)
                         Ret.append(listInp[1+q+v-len(patterns[0])])
                     return Ret
         return False
