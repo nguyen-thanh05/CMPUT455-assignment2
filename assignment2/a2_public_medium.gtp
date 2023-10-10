@@ -72,5 +72,5 @@ play b a5
 play w c3
 play b c4
 timelimit 20
-30 genmove
+30 genmove w
 #?[d4]
