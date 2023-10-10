@@ -1,3 +1,5 @@
 *.html
 *.prof
 *.dat
+*.xml
+*.iml
