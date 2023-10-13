@@ -32,7 +32,6 @@ from board_base import (
     GO_POINT,
 )
 
-
 """
 The GoBoard class implements a board and basic functions to play
 moves, check the end of the game, and count the acore at the end.
@@ -62,9 +61,9 @@ class GoBoard(object):
         """
         Returns a number representation of the board with "w", "b", and "."
         """
-        if self.string_rep != None:
+        if self.string_rep is not None:
             return self.string_rep
-        
+
         s = 0
         Mul = 10
         for i in range(len(self.board)):
@@ -97,13 +96,13 @@ class GoBoard(object):
             for pt in range(start, start + self.size):
                 current_row.append(pt)
             self.rows.append(current_row)
-            
+
             start = self.row_start(1) + i - 1
             current_col = []
             for pt in range(start, self.row_start(self.size) + i, self.NS):
                 current_col.append(pt)
             self.cols.append(current_col)
-        
+
         self.diags = []
         # diag towards SE, starting from first row (1,1) moving right to (1,n)
         start = self.row_start(1)
@@ -139,7 +138,7 @@ class GoBoard(object):
             while self.get_color(pt) == EMPTY:
                 diag_NE.append(pt)
                 pt += -1 * self.NS + 1
-            if len(diag_NE) >=5:
+            if len(diag_NE) >= 5:
                 self.diags.append(diag_NE)
         assert len(self.rows) == self.size
         assert len(self.cols) == self.size
@@ -176,11 +175,13 @@ class GoBoard(object):
         b.current_player = self.current_player
         assert b.maxpoint == self.maxpoint
         b.board = np.copy(self.board)
+        b.black_captures = self.black_captures
+        b.white_captures = self.white_captures
+
         b.string_rep = None
         b.__repr__()
         b.removed = self.removed
         return b
-    
 
     def get_color(self, point: GO_POINT) -> GO_COLOR:
         return self.board[point]
@@ -223,8 +224,8 @@ class GoBoard(object):
 
     def end_of_game(self) -> bool:
         return self.last_move == PASS \
-           and self.last2_move == PASS
-           
+            and self.last2_move == PASS
+
     def get_empty_points(self) -> np.ndarray:
         """
         Return:
@@ -246,7 +247,7 @@ class GoBoard(object):
         """
         for row in range(1, self.size + 1):
             start: int = self.row_start(row)
-            board_array[start : start + self.size] = EMPTY
+            board_array[start: start + self.size] = EMPTY
 
     def is_eye(self, point: GO_POINT, color: GO_COLOR) -> bool:
         """
@@ -328,11 +329,11 @@ class GoBoard(object):
         if not self._has_liberty(opp_block):
             captures = list(where1d(opp_block))
             self.board[captures] = EMPTY
-            self.string_rep[captures] = EMPTY * (10 ** captures)
+            # self.string_rep[captures] = EMPTY * (10 ** captures)
             if len(captures) == 1:
                 single_capture = nb_point
         return single_capture
-    
+
     def play_move(self, point: GO_POINT, color: GO_COLOR) -> bool:
         """
         Tries to play a move of color on the point.
@@ -341,28 +342,29 @@ class GoBoard(object):
         if self.board[point] != EMPTY:
             return False
         self.board[point] = color
-        self.string_rep += int(color) * (4 ** int(point)) # Newly added
+        # self.string_rep += int(color) * (4 ** int(point)) # Newly added
         self.current_player = opponent(color)
         self.last2_move = self.last_move
         self.last_move = point
         O = opponent(color)
-        offsets = [1, -1, self.NS, -self.NS, self.NS+1, -(self.NS+1), self.NS-1, -self.NS+1]
+        offsets = [1, -1, self.NS, -self.NS, self.NS + 1, -(self.NS + 1), self.NS - 1, -self.NS + 1]
         for offset in offsets:
-            if self.board[point+offset] == O and self.board[point+(offset*2)] == O and self.board[point+(offset*3)] == color:
-                self.removed = (self.board[point+offset],point+offset,point+(offset*2))
-                
-                self.board[point+offset] = EMPTY
-                self.board[point+(offset*2)] = EMPTY
+            if self.board[point + offset] == O and self.board[point + (offset * 2)] == O and self.board[
+                point + (offset * 3)] == color:
+                self.removed = (self.board[point + offset], point + offset, point + (offset * 2))
 
-                self.string_rep -= int(self.removed[0]) * (4 ** int(point+offset)) # Newly added
-                self.string_rep -= int(self.removed[0]) * (4 ** int(point+(offset*2))) # Newly added
+                self.board[point + offset] = EMPTY
+                self.board[point + (offset * 2)] = EMPTY
+
+                # self.string_rep -= int(self.removed[0]) * (4 ** int(point+offset)) # Newly added
+                # self.string_rep -= int(self.removed[0]) * (4 ** int(point+(offset*2))) # Newly added
 
                 if color == BLACK:
                     self.black_captures += 2
                 else:
                     self.white_captures += 2
         return True
-    
+
     def neighbors_of_color(self, point: GO_POINT, color: GO_COLOR) -> List:
         """ List of neighbors of point of given color """
         nbc: List[GO_POINT] = []
@@ -412,7 +414,7 @@ class GoBoard(object):
             if result != EMPTY:
                 return result
         return EMPTY
-    
+
     def has_five_in_list(self, list):
         """
         Returns BLACK or WHITE if any five in a rows exist in the list.
@@ -429,32 +431,36 @@ class GoBoard(object):
             if counter == 5 and prev != EMPTY:
                 return prev
         return EMPTY
+
     # Pattern is a string, "E" = Empty, "R" = Return vals, '.' = Placeholder, "B" = Black, "W" = White, "C" = color
 
-    def pattern_check(self, patterns):
+    def pattern_check(self, colour):
+        return_array = []
         for r in self.rows:
-            result = self.pattern_check_list(r, patterns)
+            result = self.pattern_check_list(r, colour)
             if result:
-                return result
+                return_array += result
+
         for c in self.cols:
-            result = self.pattern_check_list(c, patterns)
+            result = self.pattern_check_list(c, colour)
             if result:
-                return result
-        #print("DIAGONALS: ")
+                return_array += result
+
         for d in self.diags:
-            result = self.pattern_check_list(d, patterns)
+            result = self.pattern_check_list(d, colour)
             if result:
-                return result
-        return False
-    
+                return_array += result
+
+        return return_array if len(return_array) > 0 else None
+
     # Possibly change to KMP pattern matching
-    def pattern_check_list(self,listInp,patterns):
-        #print()
+    def pattern_check_list(self, pos_array, colour):
+        """#print()
         for i in range(len(listInp)-len(patterns[0]) + 1):
             j = 0
             for q in range(i,i+len(patterns[0])):
                 stone = listInp[q]
-                
+
                 #print(self.get_color(stone),patterns[0][j], BLACK, WHITE, patterns[0][j], j, patterns)
                 if int(self.get_color(stone)) == BLACK and (patterns[0][j] == 'C' or patterns[0][j] == 'B'):
                     j = j + 1
@@ -473,7 +479,24 @@ class GoBoard(object):
                         #print(self.board.__repr__(),listInp)
                         Ret.append(listInp[1+q+v-len(patterns[0])])
                     return Ret
-        return False
+        return False"""
+        THREAT_THRESHOLD = 4 if colour == BLACK else -4
+        sum = 0
+        return_array = []
+        for i in range(len(pos_array) - 5 + 1):
+            if i == 0:
+                for j in range(5):
+                    sum += self.board[pos_array[j]]
+            else:
+                sum -= self.board[pos_array[i - 1]]
+                sum += self.board[pos_array[i - 1 + 5]]
+
+            if sum == THREAT_THRESHOLD:
+                for j in range(i, i + 5):
+                    if self.board[pos_array[j]] == EMPTY:
+                        return_array.append(pos_array[j])
+
+        return return_array if len(return_array) > 0 else None
 
     def undo(self):
         pass

@@ -111,6 +111,7 @@ play w a4
 play b e4
 40 timelimit 2
 #?[]
+showboard
 50 genmove w
 #?[e5]
 
