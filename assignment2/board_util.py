@@ -4,16 +4,16 @@ Utility functions for Go board.
 """
 
 import numpy as np
-import random
 from typing import List
 from board_base import GO_COLOR, GO_POINT, PASS
 from board import GoBoard
+
 
 class GoBoardUtil(object):
     @staticmethod
     def generate_legal_moves(board: GoBoard, color: GO_COLOR) -> List:
         """
-        generate a list of all legal moves on the board.
+        generate a list_to_check of all legal moves on the board.
         Does not include the Pass move.
 
         Arguments
@@ -45,6 +45,8 @@ class GoBoardUtil(object):
             a 1-d array representing the board
         color : BLACK, WHITE
             the color to generate the move for.
+        use_eye_filter : bool
+            if True, remove moves that are eyes
         """
         moves: np.ndarray[GO_POINT] = board.get_empty_points()
         np.random.shuffle(moves)
@@ -59,7 +61,7 @@ class GoBoardUtil(object):
     @staticmethod
     def generate_random_moves(board: GoBoard, use_eye_filter: bool) -> List:
         """
-        Return a list of random (legal) moves with eye-filtering.
+        Return a list_to_check of random (legal) moves with eye-filtering.
         """
         empty_points: np.ndarray[GO_POINT] = board.get_empty_points()
         color: GO_COLOR = board.current_player
@@ -74,7 +76,7 @@ class GoBoardUtil(object):
         return moves
 
     @staticmethod
-    def get_twoD_board(go_board: GoBoard) -> np.ndarray:
+    def get_two_d_board(go_board: GoBoard) -> np.ndarray:
         """
         Return: numpy array
         a two dimensional numpy array with the goboard.
@@ -88,6 +90,6 @@ class GoBoardUtil(object):
         board2d: np.ndarray[GO_POINT] = np.zeros((size, size), dtype=GO_POINT)
         for row in range(size):
             start: int = go_board.row_start(row + 1)
-            board2d[row, :] = go_board.board[start : start + size]
+            board2d[row, :] = go_board.board[start: start + size]
         board2d = np.flipud(board2d)
         return board2d

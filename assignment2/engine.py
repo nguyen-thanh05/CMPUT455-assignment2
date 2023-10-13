@@ -1,7 +1,8 @@
-from board_base import GO_POINT, NO_POINT
+from board_base import GO_POINT
 from board import GoBoard
 
 DEFAULT_KOMI = 6.5
+
 
 class GoEngine:
     def __init__(self, name: str, version: float) -> None:

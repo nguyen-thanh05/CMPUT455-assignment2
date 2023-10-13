@@ -13,9 +13,7 @@ import time
 import numpy as np
 import re
 from sys import stdin, stdout, stderr, setrecursionlimit
-from typing import Any, Callable, Dict, List, Tuple
-setrecursionlimit(2000000000)
-
+from typing import Callable, Dict, List, Tuple
 from board_base import (
     BLACK,
     WHITE,
@@ -30,6 +28,8 @@ from board_base import (
 from board import GoBoard
 from board_util import GoBoardUtil
 from engine import GoEngine
+
+setrecursionlimit(2000000000)
 
 
 class GtpConnection:
@@ -91,10 +91,12 @@ class GtpConnection:
             "legal_moves": (1, "Usage: legal_moves {w,b}"),
         }
 
-    def write(self, data: str) -> None:
+    @staticmethod
+    def write(data: str) -> None:
         stdout.write(data)
 
-    def flush(self) -> None:
+    @staticmethod
+    def flush() -> None:
         stdout.flush()
 
     def start_connection(self) -> None:
@@ -154,12 +156,14 @@ class GtpConnection:
             stderr.write(msg)
             stderr.flush()
 
-    def error(self, error_msg: str) -> None:
+    @staticmethod
+    def error(error_msg: str) -> None:
         """ Send error msg to stdout """
         stdout.write("? {}\n\n".format(error_msg))
         stdout.flush()
 
-    def respond(self, response: str = "") -> None:
+    @staticmethod
+    def respond(response: str = "") -> None:
         """ Send response to stdout """
         stdout.write("= {}\n\n".format(response))
         stdout.flush()
@@ -171,7 +175,7 @@ class GtpConnection:
         self.board.reset(size)
 
     def board2d(self) -> str:
-        return str(GoBoardUtil.get_twoD_board(self.board))
+        return str(GoBoardUtil.get_two_d_board(self.board))
 
     def protocol_version_cmd(self, args: List[str]) -> None:
         """ Return the GTP protocol version being used (always 2) """
@@ -222,7 +226,7 @@ class GtpConnection:
             self.respond("false")
 
     def list_commands_cmd(self, args: List[str]) -> None:
-        """ list all supported GTP commands """
+        """ list_to_check all supported GTP commands """
         self.respond(" ".join(list(self.commands.keys())))
 
     def legal_moves_cmd(self, args: List[str]) -> None:
@@ -276,22 +280,22 @@ class GtpConnection:
     def gogui_rules_board_cmd(self, args: List[str]) -> None:
         """ We already implemented this function for Assignment 2 """
         size = self.board.size
-        str = ''
+        string = ''
         for row in range(size - 1, -1, -1):
             start = self.board.row_start(row + 1)
             for i in range(size):
-                # str += '.'
+                # string += '.'
                 point = self.board.board[start + i]
                 if point == BLACK:
-                    str += 'X'
+                    string += 'X'
                 elif point == WHITE:
-                    str += 'O'
+                    string += 'O'
                 elif point == EMPTY:
-                    str += '.'
+                    string += '.'
                 else:
                     assert False
-            str += '\n'
-        self.respond(str)
+            string += '\n'
+        self.respond(string)
 
     def gogui_rules_final_result_cmd(self, args: List[str]) -> None:
         """ We already implemented this function for Assignment 2 """
@@ -312,9 +316,8 @@ class GtpConnection:
             self.respond("unknown")
         return
 
-
-    def set_transposition(self,Res, color,move):
-        if Res != "unknown":
+    def set_transposition(self, res, color, move):
+        if res != "unknown":
             self.transposition[self.board.get_captures(BLACK)] = \
                 self.board.get_captures(BLACK) in \
                 self.transposition and self.transposition[self.board.get_captures(BLACK)] or \
@@ -322,14 +325,16 @@ class GtpConnection:
 
             self.transposition[self.board.get_captures(BLACK)][self.board.get_captures(WHITE)] = \
                 self.board.get_captures(WHITE) in \
-                self.transposition[self.board.get_captures(BLACK)] and self.transposition[self.board.get_captures(BLACK)][self.board.get_captures(WHITE)] or \
+                self.transposition[self.board.get_captures(BLACK)] and \
+                self.transposition[self.board.get_captures(BLACK)][self.board.get_captures(WHITE)] or \
                 dict()
 
             self.transposition[self.board.get_captures(BLACK)][self.board.get_captures(WHITE)][color] = \
                 color in self.transposition[self.board.get_captures(BLACK)][self.board.get_captures(WHITE)] \
                 and self.transposition[self.board.get_captures(BLACK)][self.board.get_captures(WHITE)][color] or dict()
-            #print(self.board.__repr__())
-            self.transposition[self.board.get_captures(BLACK)][self.board.get_captures(WHITE)][color][self.board.__repr__()] = (Res,move)
+            # print(self.board.__repr__())
+            self.transposition[self.board.get_captures(BLACK)][self.board.get_captures(WHITE)][color][
+                self.board.__repr__()] = (res, move)
 
     def gogui_rules_legal_moves_cmd(self, args: List[str]) -> None:
         """ We already implemented this function for Assignment 2 """
@@ -405,14 +410,14 @@ class GtpConnection:
 
         self.startTime = time.time()
 
-        OldRep = self.board.string_rep
+        old_rep = self.board.string_rep
         current_board = np.array(self.board.board)
         current_white_captures = self.board.white_captures
         current_black_captures = self.board.black_captures
 
         res, move_won = self.minimax(color, True)
 
-        self.board.string_rep = OldRep
+        self.board.string_rep = old_rep
         self.board.board = current_board
         self.board.white_captures = current_white_captures
         self.board.black_captures = current_black_captures
@@ -435,17 +440,19 @@ class GtpConnection:
             if 1 <= timevar <= 100:
                 self.timelimit = timevar
         self.respond()
-    
+
     # self.transposition[self.board.size][self.board.get_captures(BLACK)][self.board.get_captures(WHITE)][self.board.__repr__()]
     def who_won(self, color):
         if self.board.get_captures(BLACK) in self.transposition \
-            and self.board.get_captures(WHITE) in self.transposition[self.board.get_captures(BLACK)] and \
-            color in self.transposition[self.board.get_captures(BLACK)][self.board.get_captures(WHITE)] and \
-            self.board.__repr__() in self.transposition[self.board.get_captures(BLACK)][self.board.get_captures(WHITE)][color]:
-            #print("GOT TABLE VALUE")
-            val = self.transposition[self.board.get_captures(BLACK)][self.board.get_captures(WHITE)][color][self.board.__repr__()]
+                and self.board.get_captures(WHITE) in self.transposition[self.board.get_captures(BLACK)] and \
+                color in self.transposition[self.board.get_captures(BLACK)][self.board.get_captures(WHITE)] and \
+                self.board.__repr__() in \
+                self.transposition[self.board.get_captures(BLACK)][self.board.get_captures(WHITE)][color]:
+            # print("GOT TABLE VALUE")
+            val = self.transposition[self.board.get_captures(BLACK)][self.board.get_captures(WHITE)][color][
+                self.board.__repr__()]
             return val[0], val[1]
-        
+
         if time.time() - self.startTime >= self.timelimit:
             return "unknown", PASS
         result1 = self.board.detect_five_in_a_row()
@@ -475,8 +482,8 @@ class GtpConnection:
             check = self.board.pattern_check(("EBBBB", [0])) or self.board.pattern_check(
                 ("BEBBB", [1])) or self.board.pattern_check(("BBEBB", [2])) or self.board.pattern_check(
                 ("BBBEB", [3])) or self.board.pattern_check(("BBBBE", [4]))
-            #print("RAN FOR BLACK")
-            #print(check)
+            # print("RAN FOR BLACK")
+            # print(check)
             if current_black_captures >= 8:
                 check = check or self.board.pattern_check(("BWWE", [3])) or self.board.pattern_check(("EWWB", [0]))
 
@@ -487,8 +494,6 @@ class GtpConnection:
             check = check or self.board.pattern_check(("EWWWW", [0])) or self.board.pattern_check(
                 ("WEWWW", [1])) or self.board.pattern_check(("WWEWW", [2])) or self.board.pattern_check(
                 ("WWWEW", [3])) or self.board.pattern_check(("WWWWE", [4]))
-
-
         else:
             # This first part is for immediate win
             check = self.board.pattern_check(("EWWWW", [0])) or self.board.pattern_check(
@@ -523,11 +528,11 @@ class GtpConnection:
             else:
                 return val_two
 
-    def minimax(self, color, return_move = False, a="N/A", b="N/A"):
+    def minimax(self, color, return_move=False, a="N/A", b="N/A"):
         alpha = a
         beta = b
 
-        OldRep = self.board.string_rep
+        old_rep = self.board.string_rep
         current_board = np.array(self.board.board)
         current_white_captures = self.board.white_captures
         current_black_captures = self.board.black_captures
@@ -537,7 +542,7 @@ class GtpConnection:
         res, move_won = self.who_won(color)
         if res:
             if return_move and move_won or (not return_move):
-                self.set_transposition(res,color,move_won)
+                self.set_transposition(res, color, move_won)
                 return res, move_won
 
         move_won = None
@@ -546,7 +551,7 @@ class GtpConnection:
             val = "N/A"  # Lowest Priority
             for i in moves:
 
-                self.board.string_rep = OldRep
+                self.board.string_rep = old_rep
                 self.board.board = np.array(current_board)
                 self.board.white_captures = current_white_captures
                 self.board.black_captures = current_black_captures
@@ -560,7 +565,7 @@ class GtpConnection:
                 val = self.get_best_value(color, val, leaf_val)
                 if leaf_val == val and (val == "draw" or val == "b"):
                     move_won = i
-                
+
                 alpha = self.get_best_value(color, alpha, val)
                 if val == 'w':
                     break
@@ -568,19 +573,19 @@ class GtpConnection:
                         beta == alpha or beta == "b" or alpha == "w")) or beta == "unknown" or alpha == "unknown":
                     move_won = None
                     break
-            
-            self.board.string_rep = OldRep
+
+            self.board.string_rep = old_rep
             self.board.board = np.array(current_board)
             self.board.white_captures = current_white_captures
             self.board.black_captures = current_black_captures
             if move_won:
-                self.set_transposition(val,color, move_won)
+                self.set_transposition(val, color, move_won)
             return val, move_won
         else:
             val = "N/A"  # Lowest Priority
             for i in moves:
 
-                self.board.string_rep = OldRep
+                self.board.string_rep = old_rep
                 self.board.board = np.array(current_board)
                 self.board.white_captures = current_white_captures
                 self.board.black_captures = current_black_captures
@@ -594,7 +599,7 @@ class GtpConnection:
                 val = self.get_best_value(color, val, leaf_val)
                 if leaf_val == val and (val == "draw" or val == "b"):
                     move_won = i
-                
+
                 beta = self.get_best_value(color, beta, val)
                 if val == "b":
                     break
@@ -603,30 +608,30 @@ class GtpConnection:
                     move_won = None
                     break
 
-            self.board.string_rep = OldRep
+            self.board.string_rep = old_rep
             self.board.board = np.array(current_board)
             self.board.white_captures = current_white_captures
             self.board.black_captures = current_black_captures
 
             if move_won:
-                self.set_transposition(val,color, move_won)
+                self.set_transposition(val, color, move_won)
             return val, move_won
 
     def solve_cmd(self, args: List[str]) -> None:
         color = self.board.current_player
         self.startTime = time.time()
 
-        OldRep = self.board.string_rep
+        old_rep = self.board.string_rep
         current_board = np.array(self.board.board)
         current_white_captures = self.board.white_captures
         current_black_captures = self.board.black_captures
 
-        #print(self.board.diags, color, BLACK, WHITE)
-        #print(self.get_moves(color))
-        #time.sleep(100)
+        # print(self.board.diags, color, BLACK, WHITE)
+        # print(self.get_moves(color))
+        # time.sleep(100)
         res, move = self.minimax(self.board.current_player)
 
-        self.board.string_rep = OldRep
+        self.board.string_rep = old_rep
         self.board.board = current_board
         self.board.white_captures = current_white_captures
         self.board.black_captures = current_black_captures
@@ -652,10 +657,10 @@ def point_to_coord(point: GO_POINT, boardsize: int) -> Tuple[int, int]:
     Special case: PASS is transformed to (PASS,PASS)
     """
     if point == PASS:
-        return (PASS, PASS)
+        return PASS, PASS
     else:
-        NS = boardsize + 1
-        return divmod(point, NS)
+        ns = boardsize + 1
+        return divmod(point, ns)
 
 
 def format_point(move: Tuple[int, int]) -> str:
@@ -682,7 +687,7 @@ def move_to_coord(point_str: str, board_size: int) -> Tuple[int, int]:
         raise ValueError("board_size out of range")
     s = point_str.lower()
     if s == "pass":
-        return (PASS, PASS)
+        return PASS, PASS
     try:
         col_c = s[0]
         if (not "a" <= col_c <= "z") or col_c == "i":
@@ -702,5 +707,5 @@ def move_to_coord(point_str: str, board_size: int) -> Tuple[int, int]:
 
 def color_to_int(c: str) -> int:
     """convert character to the appropriate integer code"""
-    color_to_int = {"b": BLACK, "w": WHITE, "e": EMPTY, "BORDER": BORDER}
-    return color_to_int[c]
+    col_to_int = {"b": BLACK, "w": WHITE, "e": EMPTY, "BORDER": BORDER}
+    return col_to_int[c]
