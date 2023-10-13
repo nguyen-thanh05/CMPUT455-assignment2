@@ -58,7 +58,7 @@ play b b2
 play w b3
 timelimit 1
 20 solve
-#[w]
+#?[w]
 
 clear_board
 play b c2
@@ -83,7 +83,7 @@ play b a3
 play w b2
 timelimit 1
 30 genmove b
-#[a5]
+#?[a5]
 
 clear_board
 play b c3
