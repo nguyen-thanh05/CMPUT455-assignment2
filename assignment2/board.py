@@ -12,7 +12,7 @@ The board uses a 1-dimensional representation with padding
 """
 
 import numpy as np
-from typing import List, Tuple
+from typing import List
 
 from board_base import (
     board_array_size,
@@ -32,7 +32,6 @@ from board_base import (
     GO_POINT,
 )
 
-
 """
 The GoBoard class implements a board and basic functions to play
 moves, check the end of the game, and count the acore at the end.
@@ -49,6 +48,18 @@ class GoBoard(object):
         """
         Creates a Go board of given size
         """
+        self.board = None
+        self.maxpoint = None
+        self.current_player = None
+        self.last2_move = None
+        self.last_move = None
+        self.ko_recapture = None
+        self.diags = None
+        self.WE = None
+        self.NS = None
+        self.size = None
+        self.cols = None
+        self.rows = None
         assert 2 <= size <= MAXSIZE
         self.reset(size)
         self.calculate_rows_cols_diags()
@@ -62,14 +73,14 @@ class GoBoard(object):
         """
         Returns a number representation of the board with "w", "b", and "."
         """
-        if self.string_rep != None:
+        if self.string_rep is not None:
             return self.string_rep
-        
+
         s = 0
-        Mul = 10
+        mul = 10
         for i in range(len(self.board)):
-            s += i * Mul
-            Mul *= 10
+            s += i * mul
+            mul *= 10
         self.string_rep = s
         return s
 
@@ -97,50 +108,50 @@ class GoBoard(object):
             for pt in range(start, start + self.size):
                 current_row.append(pt)
             self.rows.append(current_row)
-            
+
             start = self.row_start(1) + i - 1
             current_col = []
             for pt in range(start, self.row_start(self.size) + i, self.NS):
                 current_col.append(pt)
             self.cols.append(current_col)
-        
+
         self.diags = []
         # diag towards SE, starting from first row (1,1) moving right to (1,n)
         start = self.row_start(1)
         for i in range(start, start + self.size):
-            diag_SE = []
+            diag_se = []
             pt = i
             while self.get_color(pt) == EMPTY:
-                diag_SE.append(pt)
+                diag_se.append(pt)
                 pt += self.NS + 1
-            if len(diag_SE) >= 5:
-                self.diags.append(diag_SE)
+            if len(diag_se) >= 5:
+                self.diags.append(diag_se)
         # diag towards SE and NE, starting from (2,1) downwards to (n,1)
         for i in range(start + self.NS, self.row_start(self.size) + 1, self.NS):
-            diag_SE = []
-            diag_NE = []
+            diag_se = []
+            diag_ne = []
             pt = i
             while self.get_color(pt) == EMPTY:
-                diag_SE.append(pt)
+                diag_se.append(pt)
                 pt += self.NS + 1
             pt = i
             while self.get_color(pt) == EMPTY:
-                diag_NE.append(pt)
+                diag_ne.append(pt)
                 pt += -1 * self.NS + 1
-            if len(diag_SE) >= 5:
-                self.diags.append(diag_SE)
-            if len(diag_NE) >= 5:
-                self.diags.append(diag_NE)
+            if len(diag_se) >= 5:
+                self.diags.append(diag_se)
+            if len(diag_ne) >= 5:
+                self.diags.append(diag_ne)
         # diag towards NE, starting from (n,2) moving right to (n,n)
         start = self.row_start(self.size) + 1
         for i in range(start, start + self.size):
-            diag_NE = []
+            diag_ne = []
             pt = i
             while self.get_color(pt) == EMPTY:
-                diag_NE.append(pt)
+                diag_ne.append(pt)
                 pt += -1 * self.NS + 1
-            if len(diag_NE) >=5:
-                self.diags.append(diag_NE)
+            if len(diag_ne) >= 5:
+                self.diags.append(diag_ne)
         assert len(self.rows) == self.size
         assert len(self.cols) == self.size
         assert len(self.diags) == (2 * (self.size - 5) + 1) * 2
@@ -180,7 +191,6 @@ class GoBoard(object):
         b.__repr__()
         b.removed = self.removed
         return b
-    
 
     def get_color(self, point: GO_POINT) -> GO_COLOR:
         return self.board[point]
@@ -223,8 +233,8 @@ class GoBoard(object):
 
     def end_of_game(self) -> bool:
         return self.last_move == PASS \
-           and self.last2_move == PASS
-           
+            and self.last2_move == PASS
+
     def get_empty_points(self) -> np.ndarray:
         """
         Return:
@@ -246,7 +256,7 @@ class GoBoard(object):
         """
         for row in range(1, self.size + 1):
             start: int = self.row_start(row)
-            board_array[start : start + self.size] = EMPTY
+            board_array[start: start + self.size] = EMPTY
 
     def is_eye(self, point: GO_POINT, color: GO_COLOR) -> bool:
         """
@@ -332,37 +342,38 @@ class GoBoard(object):
             if len(captures) == 1:
                 single_capture = nb_point
         return single_capture
-    
+
     def play_move(self, point: GO_POINT, color: GO_COLOR) -> bool:
         """
         Tries to play a move of color on the point.
-        Returns whether or not the point was empty.
+        Returns whether the point was empty.
         """
         if self.board[point] != EMPTY:
             return False
         self.board[point] = color
-        self.string_rep += int(color) * (4 ** int(point)) # Newly added
+        self.string_rep += int(color) * (4 ** int(point))  # Newly added
         self.current_player = opponent(color)
         self.last2_move = self.last_move
         self.last_move = point
-        O = opponent(color)
-        offsets = [1, -1, self.NS, -self.NS, self.NS+1, -(self.NS+1), self.NS-1, -self.NS+1]
+        opp = opponent(color)
+        offsets = [1, -1, self.NS, -self.NS, self.NS + 1, -(self.NS + 1), self.NS - 1, -self.NS + 1]
         for offset in offsets:
-            if self.board[point+offset] == O and self.board[point+(offset*2)] == O and self.board[point+(offset*3)] == color:
-                self.removed = (self.board[point+offset],point+offset,point+(offset*2))
-                
-                self.board[point+offset] = EMPTY
-                self.board[point+(offset*2)] = EMPTY
+            if self.board[point + offset] == opp and self.board[point + (offset * 2)] == opp and self.board[
+                    point + (offset * 3)] == color:
+                self.removed = (self.board[point + offset], point + offset, point + (offset * 2))
 
-                self.string_rep -= int(self.removed[0]) * (4 ** int(point+offset)) # Newly added
-                self.string_rep -= int(self.removed[0]) * (4 ** int(point+(offset*2))) # Newly added
+                self.board[point + offset] = EMPTY
+                self.board[point + (offset * 2)] = EMPTY
+
+                self.string_rep -= int(self.removed[0]) * (4 ** int(point + offset))  # Newly added
+                self.string_rep -= int(self.removed[0]) * (4 ** int(point + (offset * 2)))  # Newly added
 
                 if color == BLACK:
                     self.black_captures += 2
                 else:
                     self.white_captures += 2
         return True
-    
+
     def neighbors_of_color(self, point: GO_POINT, color: GO_COLOR) -> List:
         """ List of neighbors of point of given color """
         nbc: List[GO_POINT] = []
@@ -384,7 +395,7 @@ class GoBoard(object):
 
     def last_board_moves(self) -> List:
         """
-        Get the list of last_move and second last move.
+        Get the list_to_check of last_move and second last move.
         Only include moves on the board (not NO_POINT, not PASS).
         """
         board_moves: List[GO_POINT] = []
@@ -412,15 +423,15 @@ class GoBoard(object):
             if result != EMPTY:
                 return result
         return EMPTY
-    
-    def has_five_in_list(self, list):
+
+    def has_five_in_list(self, list_to_check):
         """
-        Returns BLACK or WHITE if any five in a rows exist in the list.
+        Returns BLACK or WHITE if any five in a rows exist in the list_to_check.
         EMPTY otherwise.
         """
         prev = BORDER
         counter = 1
-        for stone in list:
+        for stone in list_to_check:
             if self.get_color(stone) == prev:
                 counter += 1
             else:
@@ -429,6 +440,7 @@ class GoBoard(object):
             if counter == 5 and prev != EMPTY:
                 return prev
         return EMPTY
+
     # Pattern is a string, "E" = Empty, "R" = Return vals, '.' = Placeholder, "B" = Black, "W" = White, "C" = color
 
     def pattern_check(self, patterns):
@@ -440,22 +452,22 @@ class GoBoard(object):
             result = self.pattern_check_list(c, patterns)
             if result:
                 return result
-        #print("DIAGONALS: ")
+        # print("DIAGONALS: ")
         for d in self.diags:
             result = self.pattern_check_list(d, patterns)
             if result:
                 return result
         return False
-    
+
     # Possibly change to KMP pattern matching
-    def pattern_check_list(self,listInp,patterns):
-        #print()
-        for i in range(len(listInp)-len(patterns[0]) + 1):
+    def pattern_check_list(self, list_inp, patterns):
+        # print()
+        for i in range(len(list_inp) - len(patterns[0]) + 1):
             j = 0
-            for q in range(i,i+len(patterns[0])):
-                stone = listInp[q]
-                
-                #print(self.get_color(stone),patterns[0][j], BLACK, WHITE, patterns[0][j], j, patterns)
+            for q in range(i, i + len(patterns[0])):
+                stone = list_inp[q]
+
+                # print(self.get_color(stone),patterns[0][j], BLACK, WHITE, patterns[0][j], j, patterns)
                 if int(self.get_color(stone)) == BLACK and (patterns[0][j] == 'C' or patterns[0][j] == 'B'):
                     j = j + 1
                 elif int(self.get_color(stone)) == WHITE and (patterns[0][j] == 'C' or patterns[0][j] == 'W'):
@@ -466,13 +478,13 @@ class GoBoard(object):
                     j = 0
                     break
                 if j == len(patterns[0]):
-                    #print("HAS FOUND!!!\n\n\n")
-                    Ret = []
+                    # print("HAS FOUND!!!\n\n\n")
+                    ret = []
                     for v in patterns[1]:
-                        #print("FOUND: ",listInp[1+q+v-len(patterns[0])])
-                        #print(self.board.__repr__(),listInp)
-                        Ret.append(listInp[1+q+v-len(patterns[0])])
-                    return Ret
+                        # print("FOUND: ",list_inp[1+q+v-len(patterns[0])])
+                        # print(self.board.__repr__(),list_inp)
+                        ret.append(list_inp[1 + q + v - len(patterns[0])])
+                    return ret
         return False
 
     def undo(self):
