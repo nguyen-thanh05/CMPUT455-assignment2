@@ -408,7 +408,6 @@ class GtpConnection:
         """
         board_color = args[0].lower()
         color = color_to_int(board_color)
-        self.startTime = time.time()
         moves = self.board.pattern_check_whole_board_convolve(color)
 
         if moves and len(moves) > 0:  # Immediate 5 in a row win. No need to search
@@ -428,6 +427,7 @@ class GtpConnection:
             best = 10000
         else:
             best = -10000
+        self.startTime = time.time()
 
         for move in moves:
             self.board.play_move(move, color)
