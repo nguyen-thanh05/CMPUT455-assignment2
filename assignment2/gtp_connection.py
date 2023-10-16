@@ -318,26 +318,6 @@ class GtpConnection:
             self.respond("unknown")
         return
 
-    def set_transposition(self, res, color, move):
-        if res != "unknown":
-            self.transposition[self.board.get_captures(BLACK)] = \
-                self.board.get_captures(BLACK) in \
-                self.transposition and self.transposition[self.board.get_captures(BLACK)] or \
-                dict()
-
-            self.transposition[self.board.get_captures(BLACK)][self.board.get_captures(WHITE)] = \
-                self.board.get_captures(WHITE) in \
-                self.transposition[self.board.get_captures(BLACK)] and \
-                self.transposition[self.board.get_captures(BLACK)][self.board.get_captures(WHITE)] or \
-                dict()
-
-            self.transposition[self.board.get_captures(BLACK)][self.board.get_captures(WHITE)][color] = \
-                color in self.transposition[self.board.get_captures(BLACK)][self.board.get_captures(WHITE)] \
-                and self.transposition[self.board.get_captures(BLACK)][self.board.get_captures(WHITE)][color] or dict()
-            # print(self.board.__repr__())
-            self.transposition[self.board.get_captures(BLACK)][self.board.get_captures(WHITE)][color][
-                self.board.__repr__()] = (res, move)
-
     def gogui_rules_legal_moves_cmd(self, args: List[str]) -> None:
         """ We already implemented this function for Assignment 2 """
         if (self.board.detect_five_in_a_row() != EMPTY) or \
@@ -391,6 +371,27 @@ class GtpConnection:
     Assignment 2 - game-specific commands you have to implement or modify
     ==========================================================================
     """
+    def set_transposition(self, board, white_captures, black_captures, player_playing, who_won):
+        if not self.passed_time_threshold:
+            board_rep = board.convert()
+            if board_rep in self.transposition:
+                self.transposition[board.convert()][
+                    str(white_captures) + "_" + str(black_captures) + "_" + str(player_playing)] = who_won
+            else:
+                self.transposition[board.convert()] = dict()
+                self.transposition[board.convert()][str(white_captures) + "_" + str(black_captures) + "_" + str(player_playing)] = who_won
+
+            #self.transposition[board_rep] = board_rep in self.transposition and self.transposition[board_rep] or dict()
+            #self.transposition[board.convert(board.board) + "_" + str(white_captures) + "_" + str(black_captures) + "_" + str(player_playing)] = who_won
+
+    def get_transposition(self, board, white_captures, black_captures, player_playing):
+        """if np.array2string(board.board) + "_" + str(white_captures) + "_" + str(black_captures) + "_" + str(player_playing) in self.transposition:
+            return self.transposition[board.convert(board.board) + "_" + str(white_captures) + "_" + str(black_captures) + "_" + str(player_playing)]"""
+        board_rep = board.convert()
+        if board_rep in self.transposition:
+            if str(white_captures) + "_" + str(black_captures) + "_" + str(player_playing) in self.transposition[board_rep]:
+                return self.transposition[board_rep][str(white_captures) + "_" + str(black_captures) + "_" + str(player_playing)]
+        return None
 
     def genmove_cmd(self, args: List[str]) -> None:
         """ 
@@ -450,7 +451,6 @@ class GtpConnection:
             # if val is already winning, stop searching
             if color == WHITE:
                 if val < best:
-                    best_move = move
                     best = val
                     best_move = move
 
@@ -458,7 +458,6 @@ class GtpConnection:
                     break
             else:
                 if val > best:
-                    best_move = move
                     best = val
                     best_move = move
 
@@ -547,7 +546,10 @@ class GtpConnection:
             else:
                 return val_two
 
-    def minimax(self, colour: GO_COLOR, alpha=-np.inf, beta=np.inf):
+    def minimax(self, colour: GO_COLOR, alpha=-np.inf, beta=np.inf, has_played = None):
+        existed_state = self.get_transposition(self.board, self.board.white_captures, self.board.black_captures, self.board.current_player)
+        if existed_state:
+            return existed_state
 
         board_eval = self.eval(self.board)
         if time.time() - self.startTime > self.timelimit:
@@ -566,6 +568,12 @@ class GtpConnection:
                 val = max(val, self.minimax(WHITE, alpha, beta))
                 self.board.undo()
                 alpha = max(alpha, val)
+
+                self.set_transposition(self.board, self.board.white_captures, self.board.black_captures, \
+                                       colour, val)
+                if val == 1000:
+                    break
+
                 if val >= beta:
                     break
             return val
@@ -578,6 +586,12 @@ class GtpConnection:
                 val = min(val, self.minimax(BLACK, alpha, beta))
                 self.board.undo()
                 beta = min(beta, val)
+
+                self.set_transposition(self.board, self.board.white_captures, self.board.black_captures, \
+                                       colour, val)
+                if val == -1000:
+                    break
+
                 if val <= alpha:
                     break
             return val
