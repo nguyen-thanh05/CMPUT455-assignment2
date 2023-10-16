@@ -421,6 +421,7 @@ class GtpConnection:
         self.board.board = current_board
         self.board.white_captures = current_white_captures
         self.board.black_captures = current_black_captures
+        self.board.current_player = color
 
         if res == board_color or res == "draw":
             move_coord = point_to_coord(move_won, self.board.size)
@@ -563,7 +564,7 @@ class GtpConnection:
                 leaf_val, _ = self.minimax(BLACK, False, alpha, beta)
 
                 val = self.get_best_value(color, val, leaf_val)
-                if leaf_val == val and (val == "draw" or val == "b"):
+                if leaf_val == val and (val == "draw" or val == "w"):
                     move_won = i
 
                 alpha = self.get_best_value(color, alpha, val)
