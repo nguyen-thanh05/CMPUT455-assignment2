@@ -10,9 +10,15 @@ Implements a basic Go board with functions to:
 
 The board uses a 1-dimensional representation with padding
 """
-
+import re
 import numpy as np
 from typing import List
+
+from collections import deque
+
+
+
+
 
 from board_base import (
     board_array_size,
@@ -31,6 +37,91 @@ from board_base import (
     GO_COLOR,
     GO_POINT,
 )
+
+
+class AhoCorasickNode:
+    def __init__(self):
+        self.children = {}
+        self.fail = None
+        self.output = []
+
+def build_ac_trie(patterns):
+    root = AhoCorasickNode()
+    
+    for pattern in patterns:
+        node = root
+        for num in pattern:
+            if num not in node.children:
+                node.children[num] = AhoCorasickNode()
+            node = node.children[num]
+        node.output.append(pattern)
+
+    queue = deque()
+    for child in root.children.values():
+        queue.append(child)
+        child.fail = root
+
+    while queue:
+        current_node = queue.popleft()
+        for num, child in current_node.children.items():
+            queue.append(child)
+            fail_node = current_node.fail
+            while fail_node and num not in fail_node.children:
+                fail_node = fail_node.fail
+            if fail_node:
+                child.fail = fail_node.children.get(num, root)
+            else:
+                child.fail = root
+            child.output.extend(child.fail.output)
+
+    return root
+
+def aho_corasick_search_first(text_array, ac_trie, patterns):
+    current_node = ac_trie
+    i = 0
+
+    for num in text_array:
+        while num not in current_node.children and current_node.fail:
+            current_node = current_node.fail
+        if num in current_node.children:
+            current_node = current_node.children[num]
+        for j in current_node.output:
+            pattern_index = patterns.index(j)
+            start_pos = i - len(j) + 1
+            return pattern_index, start_pos
+
+        i += 1
+
+    return -1, -1
+
+# Define your patterns and expected returns as lists of lists
+patterns_white = [[WHITE, WHITE, WHITE, WHITE, EMPTY],[WHITE, WHITE, WHITE, EMPTY, WHITE],[WHITE, WHITE, EMPTY, WHITE, WHITE],[WHITE, EMPTY, WHITE, WHITE, WHITE],[EMPTY, WHITE, WHITE, WHITE, WHITE]]
+patterns_white_return = [[4],[3],[2],[1],[0]]
+patterns_black = [[BLACK, BLACK, BLACK, BLACK, EMPTY], [BLACK, BLACK, BLACK, EMPTY, BLACK], [BLACK, BLACK, EMPTY, BLACK, BLACK], [BLACK, EMPTY, BLACK, BLACK, BLACK], [EMPTY, BLACK, BLACK, BLACK, BLACK]]
+patterns_black_return = [[4],[3],[2],[1],[0]]
+
+patterns_white_8captures = [[WHITE, WHITE, WHITE, WHITE, EMPTY], [WHITE, WHITE, WHITE, EMPTY, WHITE], [WHITE, WHITE, EMPTY, WHITE, WHITE], [WHITE, EMPTY, WHITE, WHITE, WHITE], [EMPTY, WHITE, WHITE, WHITE, WHITE], [WHITE, BLACK, BLACK, EMPTY], [EMPTY, BLACK, BLACK, WHITE]]
+patterns_white_8captures_return = [[4],[3],[2],[1],[0],[3],[0]]
+patterns_black_8captures = [[BLACK, BLACK, BLACK, BLACK, EMPTY], [BLACK, BLACK, BLACK, EMPTY, BLACK], [BLACK, BLACK, EMPTY, BLACK, BLACK], [BLACK, EMPTY, BLACK, BLACK, BLACK], [EMPTY, BLACK, BLACK, BLACK, BLACK], [BLACK,WHITE,WHITE,EMPTY], [EMPTY,WHITE,WHITE,BLACK]]
+patterns_black_8captures_return = [[4],[3],[2],[1],[0],[3],[0]]
+
+
+patterns_white_2moves = [[EMPTY, WHITE, WHITE, WHITE, EMPTY, EMPTY],[EMPTY, WHITE, WHITE, EMPTY, WHITE, EMPTY],[EMPTY, WHITE, EMPTY, WHITE, WHITE, EMPTY], [EMPTY, EMPTY, WHITE, WHITE, WHITE, EMPTY]]
+patterns_white_2moves_return = [[4],[3],[2],[1]]
+patterns_black_2moves = [[EMPTY, BLACK, BLACK, BLACK, EMPTY, EMPTY],[EMPTY, BLACK, BLACK, EMPTY, BLACK, EMPTY],[EMPTY, BLACK, EMPTY, BLACK, BLACK, EMPTY], [EMPTY, EMPTY, BLACK, BLACK, BLACK, EMPTY]]
+patterns_black_2moves_return = [[4],[3],[2],[1]]
+
+# Build the Aho-Corasick Trie only once
+ac_trie_white = build_ac_trie(patterns_white)
+ac_trie_black = build_ac_trie(patterns_black)
+
+ac_trie_white_8captures = build_ac_trie(patterns_white_8captures)
+ac_trie_black_8captures = build_ac_trie(patterns_black_8captures)
+
+ac_trie_white_2moves = build_ac_trie(patterns_white_2moves)
+ac_trie_black_2moves = build_ac_trie(patterns_black_2moves)
+
+
 
 """
 The GoBoard class implements a board and basic functions to play
@@ -65,24 +156,21 @@ class GoBoard(object):
         self.calculate_rows_cols_diags()
         self.black_captures = 0
         self.white_captures = 0
-        self.string_rep = None
-        self.__repr__()
+        #self.string_rep = None
+        #self.__repr__()
         self.removed = None
-
+        self.stack = []
     def __repr__(self):
         """
         Returns a number representation of the board with "w", "b", and "."
         """
-        if self.string_rep is not None:
-            return self.string_rep
-
-        s = 0
-        mul = 10
-        for i in range(len(self.board)):
-            s += i * mul
-            mul *= 10
-        self.string_rep = s
-        return s
+        size: int = self.size
+        board2d: np.ndarray[GO_POINT] = np.zeros((size, size), dtype=GO_POINT)
+        for row in range(size):
+            start: int = self.row_start(row + 1)
+            board2d[row, :] = self.board[start: start + size]
+        board2d = np.flipud(board2d)
+        return board2d
 
     def add_two_captures(self, color: GO_COLOR) -> None:
         if color == BLACK:
@@ -173,8 +261,8 @@ class GoBoard(object):
         self.calculate_rows_cols_diags()
         self.black_captures = 0
         self.white_captures = 0
-        self.string_rep = None
-        self.__repr__()
+        #self.string_rep = None
+        #self.__repr__()
         self.removed = None
 
     def copy(self) -> 'GoBoard':
@@ -187,8 +275,10 @@ class GoBoard(object):
         b.current_player = self.current_player
         assert b.maxpoint == self.maxpoint
         b.board = np.copy(self.board)
-        b.string_rep = None
-        b.__repr__()
+        b.black_captures = self.black_captures
+        b.white_captures = self.white_captures
+        #b.string_rep = None
+        #b.__repr__()
         b.removed = self.removed
         return b
 
@@ -351,27 +441,29 @@ class GoBoard(object):
         if self.board[point] != EMPTY:
             return False
         self.board[point] = color
-        self.string_rep += int(color) * (4 ** int(point))  # Newly added
+        #self.string_rep += int(color) * (4 ** int(point))  # Newly added
         self.current_player = opponent(color)
         self.last2_move = self.last_move
         self.last_move = point
         opp = opponent(color)
         offsets = [1, -1, self.NS, -self.NS, self.NS + 1, -(self.NS + 1), self.NS - 1, -self.NS + 1]
+        self.removed = []
         for offset in offsets:
             if self.board[point + offset] == opp and self.board[point + (offset * 2)] == opp and self.board[
                     point + (offset * 3)] == color:
-                self.removed = (self.board[point + offset], point + offset, point + (offset * 2))
-
+                self.removed.append((self.board[point + offset], point + offset, point + (offset * 2)))
                 self.board[point + offset] = EMPTY
                 self.board[point + (offset * 2)] = EMPTY
 
-                self.string_rep -= int(self.removed[0]) * (4 ** int(point + offset))  # Newly added
-                self.string_rep -= int(self.removed[0]) * (4 ** int(point + (offset * 2)))  # Newly added
+                #self.string_rep -= int(self.removed[0]) * (4 ** int(point + offset))  # Newly added
+                #self.string_rep -= int(self.removed[0]) * (4 ** int(point + (offset * 2)))  # Newly added
 
                 if color == BLACK:
                     self.black_captures += 2
                 else:
                     self.white_captures += 2
+
+        self.stack.append([point, self.removed])
         return True
 
     def neighbors_of_color(self, point: GO_POINT, color: GO_COLOR) -> List:
@@ -424,68 +516,370 @@ class GoBoard(object):
                 return result
         return EMPTY
 
-    def has_five_in_list(self, list_to_check):
+    def has_five_in_list(self, pos_array):
         """
         Returns BLACK or WHITE if any five in a rows exist in the list_to_check.
         EMPTY otherwise.
         """
-        prev = BORDER
-        counter = 1
-        for stone in list_to_check:
-            if self.get_color(stone) == prev:
-                counter += 1
+        sum = 0
+        for i in range(len(pos_array) - 5 + 1):
+            if i == 0:
+                for j in range(5):
+                    sum += self.board[pos_array[j]]
             else:
-                counter = 1
-                prev = self.get_color(stone)
-            if counter == 5 and prev != EMPTY:
-                return prev
+                sum -= self.board[pos_array[i - 1]]
+                sum += self.board[pos_array[i - 1 + 5]]
+
+            if sum == 5:
+                return BLACK
+            elif sum == -5:
+                return WHITE
         return EMPTY
 
+    def dynamic_check_five_in_a_row(self):
+        point = self.stack[-1][0]
+        color = self.board[point]
+        north_south = [self.NS, -self.NS]
+        east_west = [1, -1]
+        ne_sw = [self.NS + 1, -self.NS - 1]
+        nw_se = [self.NS - 1, -self.NS + 1]
+
+        axes = [north_south, east_west, ne_sw, nw_se]
+
+        for axis in axes:
+            count = 1
+            for direction in axis:
+                current = point
+                while self.board[current + direction] == color and count <= 5:
+                    current += direction
+                    count += 1
+            if count >= 5:
+                if self.board[point] == BLACK:
+                    return BLACK
+                elif self.board[point] == WHITE:
+                    return WHITE
+
+        return EMPTY
     # Pattern is a string, "E" = Empty, "R" = Return vals, '.' = Placeholder, "B" = Black, "W" = White, "C" = color
 
-    def pattern_check(self, patterns):
+    def convert(self):
+        #string = "".join(map(str, self.board[pos_array]))
+        #string = "".join(value.__str__() for value in self.board[pos_array])
+
+        # {board_representation <- this must include capturing information: [1000, 7]}
+        #return self.board.tostring()
+        return hash(self.board.data.tobytes())
+        # string = self.convert(r)
+    def pattern_check(self, colour):
+        return_array = []
         for r in self.rows:
-            result = self.pattern_check_list(r, patterns)
+
+            result = self.pattern_check_list(r, colour)
+            if result:
+                return_array += result
+
+        for c in self.cols:
+
+
+            result = self.pattern_check_list(c, colour)
+            if result:
+                return_array += result
+
+        for d in self.diags:
+
+            result = self.pattern_check_list(d, colour)
+            if result:
+                return_array += result
+
+        return return_array if len(return_array) > 0 else None
+
+        """return_array = []
+        for r in self.rows:
+            str = self.convert(r)
+            if colour == BLACK:
+                search = re.search(r'(b{4}e|b{3}eb|b{2}eb{2}|beb{3}|eb{4})', str)
+            else:
+                search = re.search(r'(w{4}e|w{3}ew|w{2}ew{2}|wew{3}|ew{4})', str)
+            if search:
+
+                result = self.pattern_check_list(r, colour)
+                return_array += result
+
+        for c in self.cols:
+            str = self.convert(c)
+            if colour == BLACK:
+                search = re.search(r'(b{4}e|b{3}eb|b{2}eb{2}|beb{3}|eb{4})', str)
+            else:
+                search = re.search(r'(w{4}e|w{3}ew|w{2}ew{2}|wew{3}|ew{4})', str)
+
+            if search:
+                result = self.pattern_check_list(c, colour)
+                return_array += result
+
+        for d in self.diags:
+            str = self.convert(d)
+            if colour == BLACK:
+                search = re.search(r'(b{4}e|b{3}eb|b{2}eb{2}|beb{3}|eb{4})', str)
+            else:
+                search = re.search(r'(w{4}e|w{3}ew|w{2}ew{2}|wew{3}|ew{4})', str)
+
+            if search:
+                result = self.pattern_check_list(d, colour)
+                return_array += result
+
+        return return_array if len(return_array) > 0 else None"""
+
+    # Possibly change to KMP pattern matching
+    def pattern_check_list(self, pos_array, colour):
+        THREAT_THRESHOLD = 4 if colour == BLACK else -4
+        sum = 0
+        return_array = []
+        for i in range(len(pos_array) - 5 + 1):
+            if i == 0:
+                for j in range(5):
+                    sum += self.board[pos_array[j]]
+            else:
+                sum -= self.board[pos_array[i - 1]]
+                sum += self.board[pos_array[i - 1 + 5]]
+
+            if sum == THREAT_THRESHOLD:
+                for j in range(i, i + 5):
+                    if self.board[pos_array[j]] == EMPTY:
+                        return_array.append(pos_array[j])
+        return return_array if len(return_array) > 0 else None
+
+        """THREAT_THRESHOLD = 4 if colour == BLACK else -4
+        return_array = []
+
+        array_to_check = self.board[pos_array]
+        divided_arr = np.lib.stride_tricks.sliding_window_view(array_to_check, 5)  # NEW IN NP 1.20. I double checked on lab machine, they have np 1.20.2 so it should work.
+        sum = np.sum(divided_arr, axis=1)
+        index = np.where(sum == THREAT_THRESHOLD)[0]
+
+        if len(index) > 0:
+            for i in index:
+                return_array.append(pos_array[i + np.where(divided_arr[i] == EMPTY)[0][0]])
+        return return_array if len(return_array) > 0 else None"""
+    def capture_pattern_check(self, colour):
+        possible_axes = [self.rows, self.cols, self.diags]
+        for axis in possible_axes:
+            for pos_array in axis:
+                string = ""
+                sub_board = self.board[pos_array]
+                for value in sub_board:
+                    if value == 0:
+                        string += "e"
+                    elif value == 1:
+                        string += "b"
+                    elif value == -1:
+                        string += "w"
+
+                if colour == BLACK:
+                    if re.search(r'ewwb', string):
+                        for i in range(len(sub_board) - 4 + 1):
+                            if sub_board[i] == EMPTY and sub_board[i + 1] == WHITE and sub_board[i + 2] == WHITE and sub_board[i + 3] == BLACK:
+                                return [pos_array[i]]
+                    elif re.search(r'bwwe', string):
+                        for i in range(len(sub_board) - 4 + 1):
+                            if sub_board[i] == BLACK and sub_board[i + 1] == WHITE and sub_board[i + 2] == WHITE and sub_board[i + 3] == EMPTY:
+                                return [pos_array[i + 3]]
+                elif colour == WHITE:
+                    if re.search(r'ebbw', string):
+                        for i in range(len(sub_board) - 4 + 1):
+                            if sub_board[i] == EMPTY and sub_board[i + 1] == BLACK and sub_board[i + 2] == BLACK and sub_board[i + 3] == WHITE:
+                                return [pos_array[i]]
+                    elif re.search(r'wbbe', string):
+                        for i in range(len(sub_board) - 4 + 1):
+                            if sub_board[i] == WHITE and sub_board[i + 1] == BLACK and sub_board[i + 2] == BLACK and sub_board[i + 3] == EMPTY:
+                                return [pos_array[i + 3]]
+    def undo(self):
+        """    def play_move(self, point: GO_POINT, color: GO_COLOR) -> bool:
+
+        Tries to play a move of color on the point.
+        Returns whether the point was empty.
+
+        if self.board[point] != EMPTY:
+            return False
+        self.board[point] = color
+        #self.string_rep += int(color) * (4 ** int(point))  # Newly added
+        self.current_player = opponent(color)
+        self.last2_move = self.last_move
+        self.last_move = point
+        opp = opponent(color)
+        offsets = [1, -1, self.NS, -self.NS, self.NS + 1, -(self.NS + 1), self.NS - 1, -self.NS + 1]
+        for offset in offsets:
+            if self.board[point + offset] == opp and self.board[point + (offset * 2)] == opp and self.board[
+                    point + (offset * 3)] == color:
+                self.removed = (self.board[point + offset], point + offset, point + (offset * 2))
+
+                self.board[point + offset] = EMPTY
+                self.board[point + (offset * 2)] = EMPTY
+
+                #self.string_rep -= int(self.removed[0]) * (4 ** int(point + offset))  # Newly added
+                #self.string_rep -= int(self.removed[0]) * (4 ** int(point + (offset * 2)))  # Newly added
+
+                if color == BLACK:
+                    self.black_captures += 2
+                else:
+                    self.white_captures += 2
+        return True"""
+
+        last_move = self.stack.pop(-1)
+        point = last_move[0]
+        captured = last_move[1]
+        colour = self.board[point]
+        self.last_move = self.stack[-2][0] if len(self.stack) >= 2 else None
+        self.last2_move = self.stack[-3][0] if len(self.stack) >= 3 else None
+        if len(captured) > 0:
+            for capture in captured:
+                self.board[capture[1]] = capture[0]
+                self.board[capture[2]] = capture[0]
+                if colour == BLACK:
+                    self.black_captures -= 2
+                elif colour == WHITE:
+                    self.white_captures -= 2
+
+        self.board[point] = EMPTY
+
+
+    def pattern_check_white(self):
+        for r in self.rows:
+            result = self.pattern_check_white_list(r)
             if result:
                 return result
         for c in self.cols:
-            result = self.pattern_check_list(c, patterns)
+            result = self.pattern_check_white_list(c)
             if result:
                 return result
-        # print("DIAGONALS: ")
         for d in self.diags:
-            result = self.pattern_check_list(d, patterns)
+            result = self.pattern_check_white_list(d)
             if result:
                 return result
         return False
 
-    # Possibly change to KMP pattern matching
-    def pattern_check_list(self, list_inp, patterns):
-        # print()
-        for i in range(len(list_inp) - len(patterns[0]) + 1):
-            j = 0
-            for q in range(i, i + len(patterns[0])):
-                stone = list_inp[q]
-
-                # print(self.get_color(stone),patterns[0][j], BLACK, WHITE, patterns[0][j], j, patterns)
-                if int(self.get_color(stone)) == BLACK and (patterns[0][j] == 'C' or patterns[0][j] == 'B'):
-                    j = j + 1
-                elif int(self.get_color(stone)) == WHITE and (patterns[0][j] == 'C' or patterns[0][j] == 'W'):
-                    j = j + 1
-                elif int(self.get_color(stone)) == EMPTY and patterns[0][j] == 'E':
-                    j = j + 1
-                else:
-                    j = 0
-                    break
-                if j == len(patterns[0]):
-                    # print("HAS FOUND!!!\n\n\n")
-                    ret = []
-                    for v in patterns[1]:
-                        # print("FOUND: ",list_inp[1+q+v-len(patterns[0])])
-                        # print(self.board.__repr__(),list_inp)
-                        ret.append(list_inp[1 + q + v - len(patterns[0])])
-                    return ret
+    def pattern_check_white_list(self, list_inp):
+        pattern_index, position = aho_corasick_search_first(self.board[list_inp], ac_trie_white, patterns_white)
+        if pattern_index == -1:
+            return False
+        else:
+            return [ list_inp[i+position] for i in patterns_white_return[pattern_index] ]
+        
+    def pattern_check_black(self):
+        for r in self.rows:
+            result = self.pattern_check_black_list(r)
+            if result:
+                return result
+        for c in self.cols:
+            result = self.pattern_check_black_list(c)
+            if result:
+                return result
+        for d in self.diags:
+            result = self.pattern_check_black_list(d)
+            if result:
+                return result
         return False
 
-    def undo(self):
-        pass
+    def pattern_check_black_list(self, list_inp):
+        #print("CHECKING:",self.board[list_inp],patterns_black)
+        pattern_index, position = aho_corasick_search_first(self.board[list_inp], ac_trie_black, patterns_black)
+        if pattern_index == -1:
+            return False
+        else:
+            #print("RAN THIS",pattern_index,position)
+            return [ list_inp[i+position] for i in patterns_black_return[pattern_index] ]
+        
+
+
+
+    def pattern_check_white_8captures(self):
+        for r in self.rows:
+            result = self.pattern_check_white_8captures_list(r)
+            if result:
+                return result
+        for c in self.cols:
+            result = self.pattern_check_white_8captures_list(c)
+            if result:
+                return result
+        for d in self.diags:
+            result = self.pattern_check_white_8captures_list(d)
+            if result:
+                return result
+        return False
+
+    def pattern_check_white_8captures_list(self, list_inp):
+        pattern_index, position = aho_corasick_search_first(self.board[list_inp], ac_trie_white_8captures, patterns_white_8captures)
+        if pattern_index == -1:
+            return False
+        else:
+            return [ list_inp[i+position] for i in patterns_white_8captures_return[pattern_index] ]
+        
+    def pattern_check_black_8captures(self):
+        for r in self.rows:
+            result = self.pattern_check_black_8captures_list(r)
+            if result:
+                return result
+        for c in self.cols:
+            result = self.pattern_check_black_8captures_list(c)
+            if result:
+                return result
+        for d in self.diags:
+            result = self.pattern_check_black_8captures_list(d)
+            if result:
+                return result
+        return False
+
+    def pattern_check_black_8captures_list(self, list_inp):
+        pattern_index, position = aho_corasick_search_first(self.board[list_inp], ac_trie_black_8captures, patterns_black_8captures)
+        if pattern_index == -1:
+            return False
+        else:
+            return [ list_inp[i+position] for i in patterns_black_8captures_return[pattern_index] ]
+        
+    
+
+
+    def pattern_check_white_2moves(self):
+        for r in self.rows:
+            result = self.pattern_check_white_2moves_list(r)
+            if result:
+                return result
+        for c in self.cols:
+            result = self.pattern_check_white_2moves_list(c)
+            if result:
+                return result
+        for d in self.diags:
+            result = self.pattern_check_white_2moves_list(d)
+            if result:
+                return result
+        return False
+
+    def pattern_check_white_2moves_list(self, list_inp):
+        pattern_index, position = aho_corasick_search_first(self.board[list_inp], ac_trie_white_2moves, patterns_white_2moves)
+        if pattern_index == -1:
+            return False
+        else:
+            return [ list_inp[i+position] for i in patterns_white_2moves_return[pattern_index] ]
+        
+    def pattern_check_black_2moves(self):
+        for r in self.rows:
+            result = self.pattern_check_black_2moves_list(r)
+            if result:
+                return result
+        for c in self.cols:
+            result = self.pattern_check_black_2moves_list(c)
+            if result:
+                return result
+        for d in self.diags:
+            result = self.pattern_check_black_2moves_list(d)
+            if result:
+                return result
+        return False
+
+    def pattern_check_black_2moves_list(self, list_inp):
+        #print("CHECKING:",self.board[list_inp],patterns_black)
+        pattern_index, position = aho_corasick_search_first(self.board[list_inp], ac_trie_black_2moves, patterns_black_2moves)
+        if pattern_index == -1:
+            return False
+        else:
+            #print("RAN THIS",pattern_index,position)
+            return [ list_inp[i+position] for i in patterns_black_2moves_return[pattern_index] ]

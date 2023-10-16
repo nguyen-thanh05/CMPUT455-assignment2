@@ -31,6 +31,8 @@ from engine import GoEngine
 
 setrecursionlimit(2000000000)
 
+MINIMUM_POINTS_FOR_HEURISTIC = 4
+
 
 class GtpConnection:
     def __init__(self, go_engine: GoEngine, board: GoBoard, debug_mode: bool = False) -> None:
@@ -48,6 +50,7 @@ class GtpConnection:
         self.white_priority = {"unknown": 3, "w": 2, "draw": 1, "b": 0, "N/A": -1}
         self.timelimit = 1
         self.startTime = 0
+        self.passed_time_threshold = False
 
         self._debug_mode: bool = debug_mode
         self.go_engine = go_engine
@@ -76,7 +79,8 @@ class GtpConnection:
             "gogui-rules_board": self.gogui_rules_board_cmd,
             "gogui-analyze_commands": self.gogui_analyze_cmd,
             "timelimit": self.timelimit_cmd,
-            "solve": self.solve_cmd
+            "solve": self.solve_cmd,
+            "undo":self.undo_cmd
         }
 
         # argmap is used for argument checking
@@ -316,26 +320,6 @@ class GtpConnection:
             self.respond("unknown")
         return
 
-    def set_transposition(self, res, color, move):
-        if res != "unknown":
-            self.transposition[self.board.get_captures(BLACK)] = \
-                self.board.get_captures(BLACK) in \
-                self.transposition and self.transposition[self.board.get_captures(BLACK)] or \
-                dict()
-
-            self.transposition[self.board.get_captures(BLACK)][self.board.get_captures(WHITE)] = \
-                self.board.get_captures(WHITE) in \
-                self.transposition[self.board.get_captures(BLACK)] and \
-                self.transposition[self.board.get_captures(BLACK)][self.board.get_captures(WHITE)] or \
-                dict()
-
-            self.transposition[self.board.get_captures(BLACK)][self.board.get_captures(WHITE)][color] = \
-                color in self.transposition[self.board.get_captures(BLACK)][self.board.get_captures(WHITE)] \
-                and self.transposition[self.board.get_captures(BLACK)][self.board.get_captures(WHITE)][color] or dict()
-            # print(self.board.__repr__())
-            self.transposition[self.board.get_captures(BLACK)][self.board.get_captures(WHITE)][color][
-                self.board.__repr__()] = (res, move)
-
     def gogui_rules_legal_moves_cmd(self, args: List[str]) -> None:
         """ We already implemented this function for Assignment 2 """
         if (self.board.detect_five_in_a_row() != EMPTY) or \
@@ -389,51 +373,102 @@ class GtpConnection:
     Assignment 2 - game-specific commands you have to implement or modify
     ==========================================================================
     """
+    def set_transposition(self, board, white_captures, black_captures, player_playing, who_won):
+        if not self.passed_time_threshold:
+            board_rep = board.convert()
+            if board_rep in self.transposition:
+                self.transposition[board.convert()][
+                    str(white_captures) + "_" + str(black_captures) + "_" + str(player_playing)] = who_won
+            else:
+                self.transposition[board.convert()] = dict()
+                self.transposition[board.convert()][str(white_captures) + "_" + str(black_captures) + "_" + str(player_playing)] = who_won
+
+            #self.transposition[board_rep] = board_rep in self.transposition and self.transposition[board_rep] or dict()
+            #self.transposition[board.convert(board.board) + "_" + str(white_captures) + "_" + str(black_captures) + "_" + str(player_playing)] = who_won
+
+    def get_transposition(self, board, white_captures, black_captures, player_playing):
+        """if np.array2string(board.board) + "_" + str(white_captures) + "_" + str(black_captures) + "_" + str(player_playing) in self.transposition:
+            return self.transposition[board.convert(board.board) + "_" + str(white_captures) + "_" + str(black_captures) + "_" + str(player_playing)]"""
+        board_rep = board.convert()
+        if board_rep in self.transposition:
+            if str(white_captures) + "_" + str(black_captures) + "_" + str(player_playing) in self.transposition[board_rep]:
+                return self.transposition[board_rep][str(white_captures) + "_" + str(black_captures) + "_" + str(player_playing)]
+        return None
 
     def genmove_cmd(self, args: List[str]) -> None:
         """ 
         Modify this function for Assignment 2.
         """
+        """
+                if color == BLACK:
+            # This part is for immediate win
+            check = self.board.pattern_check(BLACK)
+            check_block = self.board.pattern_check(WHITE)
+            if check_block:
+                if check:
+                    check += check_block
+                else:
+                    check = check_block
+        else:
+            check = self.board.pattern_check(WHITE)
+
+            check_block = self.board.pattern_check(BLACK)
+            if check_block:
+                if check:
+                    check += check_block
+                else:
+                    check = check_block
+        if check:
+            return check
+        else:
+            return self.board.get_empty_points()"""
         board_color = args[0].lower()
         color = color_to_int(board_color)
-        result1 = self.board.detect_five_in_a_row()
-        result2 = EMPTY
-        if self.board.get_captures(opponent(color)) >= 10:
-            result2 = opponent(color)
-        if result1 == opponent(color) or result2 == opponent(color):
-            self.respond("resign")
-            return
-        legal_moves = self.board.get_empty_points()
-        if legal_moves.size == 0:
-            self.respond("pass")
-            return
-
         self.startTime = time.time()
+        moves = self.board.pattern_check(color)
 
-        old_rep = self.board.string_rep
-        current_board = np.array(self.board.board)
-        current_white_captures = self.board.white_captures
-        current_black_captures = self.board.black_captures
-
-        res, move_won = self.minimax(color, True)
-
-        self.board.string_rep = old_rep
-        self.board.board = current_board
-        self.board.white_captures = current_white_captures
-        self.board.black_captures = current_black_captures
-        self.board.current_player = color
-
-        if res == board_color or res == "draw":
-            move_coord = point_to_coord(move_won, self.board.size)
-            move_as_string = format_point(move_coord)
-            self.play_cmd([board_color, move_as_string, 'print_move'])
+        if moves and len(moves) > 0:
+            self.board.play_move(moves[0], color)
+            self.respond(str(format_point(point_to_coord(moves[0], self.board.size))).lower())
+            return
         else:
-            rng = np.random.default_rng()
-            choice = rng.choice(len(legal_moves))
-            move = legal_moves[choice]
-            move_coord = point_to_coord(move, self.board.size)
-            move_as_string = format_point(move_coord)
-            self.play_cmd([board_color, move_as_string, 'print_move'])
+            block_moves = self.board.pattern_check(opponent(color))
+            if block_moves and len(block_moves) == 1:
+                self.board.play_move(block_moves[0], color)
+                self.respond(str(format_point(point_to_coord(block_moves[0], self.board.size))).lower())
+                return
+
+        moves = self.get_moves(color)
+        best_move = None
+        if color == WHITE:
+            best = 10000
+        else:
+            best = -10000
+
+        for move in moves:
+            self.board.play_move(move, color)
+            val = self.minimax(opponent(color))
+            self.board.undo()
+
+            # if val is already winning, stop searching
+            if color == WHITE:
+                if val < best:
+                    best = val
+                    best_move = move
+
+                if val == -1000:
+                    break
+            else:
+                if val > best:
+                    best = val
+                    best_move = move
+
+                if val == 1000:
+                    break
+        self.set_transposition(self.board, self.board.white_captures, self.board.black_captures,
+                               color, val)
+        self.board.play_move(best_move, color)
+        self.respond(str(format_point(point_to_coord(best_move, self.board.size))).lower())
 
     def timelimit_cmd(self, args: List[str]) -> None:
         if args[0].isnumeric():
@@ -443,79 +478,79 @@ class GtpConnection:
         self.respond()
 
     # self.transposition[self.board.size][self.board.get_captures(BLACK)][self.board.get_captures(WHITE)][self.board.__repr__()]
-    def who_won(self, color):
-        if self.board.get_captures(BLACK) in self.transposition \
-                and self.board.get_captures(WHITE) in self.transposition[self.board.get_captures(BLACK)] and \
-                color in self.transposition[self.board.get_captures(BLACK)][self.board.get_captures(WHITE)] and \
-                self.board.__repr__() in \
-                self.transposition[self.board.get_captures(BLACK)][self.board.get_captures(WHITE)][color]:
-            # print("GOT TABLE VALUE")
-            val = self.transposition[self.board.get_captures(BLACK)][self.board.get_captures(WHITE)][color][
-                self.board.__repr__()]
-            return val[0], val[1]
+    def undo_cmd(self, args: List[str]) -> None:
+        self.respond(str(self.board.stack))
+        self.board.undo()
+        self.respond(str(self.board.stack))
 
-        if time.time() - self.startTime >= self.timelimit:
-            return "unknown", PASS
-        result1 = self.board.detect_five_in_a_row()
-        result2 = EMPTY
+    def eval(self, board):
 
-        if self.board.get_captures(BLACK) >= 10:
-            result2 = BLACK
-        elif self.board.get_captures(WHITE) >= 10:
-            result2 = WHITE
-
-        if (result1 == BLACK) or (result2 == BLACK):
-            return "b", PASS
-        elif (result1 == WHITE) or (result2 == WHITE):
-            return "w", PASS
-        elif self.board.get_empty_points().size == 0:
-            return "draw", PASS
-        else:
-            return False, PASS
+        five = board.dynamic_check_five_in_a_row()
+        if board.get_captures(BLACK) >= 10 or five == BLACK:
+            return 1000
+        elif board.get_captures(WHITE) >= 10 or five == WHITE:
+            return -1000
+        elif len(board.get_empty_points()) == 0:
+            return 0
 
     def get_moves(self, color):
         current_white_captures = self.board.get_captures(WHITE)
         current_black_captures = self.board.get_captures(BLACK)
 
         check = None
-        if color == BLACK:
-            # This part is for immediate win
-            check = self.board.pattern_check(("EBBBB", [0])) or self.board.pattern_check(
-                ("BEBBB", [1])) or self.board.pattern_check(("BBEBB", [2])) or self.board.pattern_check(
-                ("BBBEB", [3])) or self.board.pattern_check(("BBBBE", [4]))
-            # print("RAN FOR BLACK")
-            # print(check)
-            if current_black_captures >= 8:
-                check = check or self.board.pattern_check(("BWWE", [3])) or self.board.pattern_check(("EWWB", [0]))
+        if len(self.board.get_empty_points()) >= MINIMUM_POINTS_FOR_HEURISTIC:
+            if color == BLACK:
+                # This part is for immediate win
 
-            # This part is for block immediate win
-            if current_white_captures >= 8:
-                check = check or self.board.pattern_check(("WBBE", [3])) or self.board.pattern_check(("EBBW", [0]))
+                if current_black_captures >= 8:
+                    check = self.board.pattern_check_black_8captures()
+                else:
+                    check = self.board.pattern_check_black()
 
-            check = check or self.board.pattern_check(("EWWWW", [0])) or self.board.pattern_check(
-                ("WEWWW", [1])) or self.board.pattern_check(("WWEWW", [2])) or self.board.pattern_check(
-                ("WWWEW", [3])) or self.board.pattern_check(("WWWWE", [4]))
-        else:
-            # This first part is for immediate win
-            check = self.board.pattern_check(("EWWWW", [0])) or self.board.pattern_check(
-                ("WEWWW", [1])) or self.board.pattern_check(("WWEWW", [2])) or self.board.pattern_check(
-                ("WWWEW", [3])) or self.board.pattern_check(("WWWWE", [4]))
+                
+                # This part is for block immediate win
+                if (not check) and current_white_captures >= 8:
+                    check = self.board.pattern_check_white_8captures()
+                elif (not check):
+                    check = self.board.pattern_check_white()
+                
+                
+                # 2 move wins
+                if (not check) and current_black_captures >= 8:
+                    check = self.board.pattern_check_black_2moves()
+                elif (not check):
+                    check = self.board.pattern_check_black_2moves()
+                
 
-            if current_white_captures >= 8:
-                check = check or self.board.pattern_check(("WBBE", [3])) or self.board.pattern_check(("EBBW", [0]))
+            else:
+                # This first part is for immediate win
 
-            # This part is for block immediate win
-            if current_black_captures >= 8:
-                check = check or self.board.pattern_check(("BWWE", [3])) or self.board.pattern_check(("EWWB", [0]))
+                if current_white_captures >= 8:
+                    check = self.board.pattern_check_white_8captures()
+                else:
+                    check = self.board.pattern_check_white()
 
-            check = check or self.board.pattern_check(("EBBBB", [0])) or self.board.pattern_check(
-                ("BEBBB", [1])) or self.board.pattern_check(("BBEBB", [2])) or self.board.pattern_check(
-                ("BBBEB", [3])) or self.board.pattern_check(("BBBBE", [4]))
-
+                
+                # This part is for block immediate win
+                if (not check) and current_black_captures >= 8:
+                    check = self.board.pattern_check_black_8captures()
+                elif (not check):
+                    pass#check = self.board.pattern_check_black()
+                
+                
+                # 2 move wins
+                if (not check) and current_white_captures >= 8:
+                    check = self.board.pattern_check_white_2moves()
+                elif (not check):
+                    check = self.board.pattern_check_white_2moves()
+            
+            
+        #print(check)
         if check:
             return check
         else:
             return self.board.get_empty_points()
+
 
     def get_best_value(self, color, val_one, val_two):
         if color == WHITE:
@@ -529,120 +564,96 @@ class GtpConnection:
             else:
                 return val_two
 
-    def minimax(self, color, return_move=False, a="N/A", b="N/A"):
-        alpha = a
-        beta = b
+    def minimax(self, colour: GO_COLOR, alpha=-np.inf, beta=np.inf,depth = 0):
+        existed_state = self.get_transposition(self.board, self.board.white_captures, self.board.black_captures, self.board.current_player)
+        if existed_state:
+            return existed_state
+        
 
-        old_rep = self.board.string_rep
-        current_board = np.array(self.board.board)
-        current_white_captures = self.board.white_captures
-        current_black_captures = self.board.black_captures
+        board_eval = self.eval(self.board)
+        if time.time() - self.startTime > self.timelimit:
+            #print(self.startTime, time.time(), time.time() - self.startTime >= self.timelimit)
+            self.passed_time_threshold = True
+            return 0
+        elif board_eval == 1000 or board_eval == -1000 or board_eval == 0:
+            return board_eval
 
-        moves = self.get_moves(color)
+        if colour == BLACK:  # Maximising player
+            val = - np.inf
+            moves = self.get_moves(BLACK)
 
-        res, move_won = self.who_won(color)
-        if res:
-            if return_move and move_won or (not return_move):
-                self.set_transposition(res, color, move_won)
-                return res, move_won
-
-        move_won = None
-
-        if color == WHITE:
-            val = "N/A"  # Lowest Priority
-            for i in moves:
-
-                self.board.string_rep = old_rep
-                self.board.board = np.array(current_board)
-                self.board.white_captures = current_white_captures
-                self.board.black_captures = current_black_captures
-
-                self.board.play_move(i, color)
-                # time.sleep(0.1)
-                # print(self.board2d())
-                # print()
-                leaf_val, _ = self.minimax(BLACK, False, alpha, beta)
-
-                val = self.get_best_value(color, val, leaf_val)
-                if leaf_val == val and (val == "draw" or val == "w"):
-                    move_won = i
-
-                alpha = self.get_best_value(color, alpha, val)
-                if val == 'w':
+            for move in moves:
+                self.board.play_move(move, BLACK)
+                val = max(val, self.minimax(WHITE, alpha, beta,depth+1))
+                self.board.undo()
+                alpha = max(alpha, val)
+                if val >= beta or val == 1000:
                     break
-                if ((alpha != "N/A" and beta != "N/A") and (
-                        beta == alpha or beta == "b" or alpha == "w")) or beta == "unknown" or alpha == "unknown":
-                    move_won = None
+            self.set_transposition(self.board, self.board.white_captures, self.board.black_captures, \
+                                       colour, val)
+            return val
+
+        elif colour == WHITE:  # Minimising player
+            val = np.inf
+            moves = self.get_moves(WHITE)
+            for move in moves:
+                self.board.play_move(move, WHITE)
+                val = min(val, self.minimax(BLACK, alpha, beta,depth+1))
+                self.board.undo()
+                beta = min(beta, val)
+                if val <= alpha or val == -1000:
                     break
-
-            self.board.string_rep = old_rep
-            self.board.board = np.array(current_board)
-            self.board.white_captures = current_white_captures
-            self.board.black_captures = current_black_captures
-            if move_won:
-                self.set_transposition(val, color, move_won)
-            return val, move_won
-        else:
-            val = "N/A"  # Lowest Priority
-            for i in moves:
-
-                self.board.string_rep = old_rep
-                self.board.board = np.array(current_board)
-                self.board.white_captures = current_white_captures
-                self.board.black_captures = current_black_captures
-
-                self.board.play_move(i, color)
-                # time.sleep(0.1)
-                # print(self.board2d())
-                # print()
-                leaf_val, _ = self.minimax(WHITE, False, alpha, beta)
-
-                val = self.get_best_value(color, val, leaf_val)
-                if leaf_val == val and (val == "draw" or val == "b"):
-                    move_won = i
-
-                beta = self.get_best_value(color, beta, val)
-                if val == "b":
-                    break
-                if ((alpha != "N/A" and beta != "N/A") and (
-                        beta == alpha or beta == "b" or alpha == "w")) or beta == "unknown" or alpha == "unknown":
-                    move_won = None
-                    break
-
-            self.board.string_rep = old_rep
-            self.board.board = np.array(current_board)
-            self.board.white_captures = current_white_captures
-            self.board.black_captures = current_black_captures
-
-            if move_won:
-                self.set_transposition(val, color, move_won)
-            return val, move_won
+            self.set_transposition(self.board, self.board.white_captures, self.board.black_captures, \
+                                       colour, val)
+            return val
 
     def solve_cmd(self, args: List[str]) -> None:
         color = self.board.current_player
-        self.startTime = time.time()
+        moves = self.get_moves(color)
 
-        old_rep = self.board.string_rep
-        current_board = np.array(self.board.board)
-        current_white_captures = self.board.white_captures
-        current_black_captures = self.board.black_captures
-
-        # print(self.board.diags, color, BLACK, WHITE)
-        # print(self.get_moves(color))
-        # time.sleep(100)
-        res, move = self.minimax(self.board.current_player)
-
-        self.board.string_rep = old_rep
-        self.board.board = current_board
-        self.board.white_captures = current_white_captures
-        self.board.black_captures = current_black_captures
-
-        self.board.current_player = color
-
-        if (res == "b" and color == BLACK) or (res == "w" and color == WHITE) or res == "draw":
-            self.respond(res + " " + str(format_point(point_to_coord(move, self.board.size))).lower())
+        best_move = None
+        if color == WHITE:
+            best = 1000
         else:
-            self.respond(res)
+            best = -1000
+
+        self.startTime = time.time()
+        for m in moves:
+            self.board.play_move(m, color)
+            val = self.minimax(opponent(color))
+            self.board.undo()
+
+            if color == WHITE:
+                if val < best:
+                    best = val
+                    best_move = m
+
+                if val == -1000:
+                    self.set_transposition(self.board, self.board.white_captures, self.board.black_captures, \
+                                           color, val)
+                    break
+            else:
+                if val > best:
+                    best = val
+                    best_move = m
+
+                if val == 1000:
+                    self.set_transposition(self.board, self.board.white_captures, self.board.black_captures, \
+                                           color, val)
+                    break
+        if best == -1000:
+            winner = 'w'
+        elif best == 1000:
+            winner = 'b'
+        else:
+            winner = 'draw'
+        if not self.passed_time_threshold:
+            if best_move:
+                self.respond(winner + " " + str(format_point(point_to_coord(best_move, self.board.size))).lower())
+            else:
+                self.respond(winner)
+        else:
+            self.respond("unknown")
 
     """
     ==========================================================================
