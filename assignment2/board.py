@@ -15,11 +15,6 @@ import numpy as np
 from typing import List
 
 from collections import deque
-
-
-
-
-
 from board_base import (
     board_array_size,
     coord_to_point,
@@ -45,9 +40,10 @@ class AhoCorasickNode:
         self.fail = None
         self.output = []
 
+
 def build_ac_trie(patterns):
     root = AhoCorasickNode()
-    
+
     for pattern in patterns:
         node = root
         for num in pattern:
@@ -76,7 +72,8 @@ def build_ac_trie(patterns):
 
     return root
 
-def aho_corasick_search_first(text_array, ac_trie, patterns):
+
+def aho_corasick_search(text_array, ac_trie, patterns):
     current_node = ac_trie
     i = 0
 
@@ -94,34 +91,47 @@ def aho_corasick_search_first(text_array, ac_trie, patterns):
 
     return -1, -1
 
-# Define your patterns and expected returns as lists of lists
-patterns_white = [[WHITE, WHITE, WHITE, WHITE, EMPTY],[WHITE, WHITE, WHITE, EMPTY, WHITE],[WHITE, WHITE, EMPTY, WHITE, WHITE],[WHITE, EMPTY, WHITE, WHITE, WHITE],[EMPTY, WHITE, WHITE, WHITE, WHITE]]
-patterns_white_return = [[4],[3],[2],[1],[0]]
-patterns_black = [[BLACK, BLACK, BLACK, BLACK, EMPTY], [BLACK, BLACK, BLACK, EMPTY, BLACK], [BLACK, BLACK, EMPTY, BLACK, BLACK], [BLACK, EMPTY, BLACK, BLACK, BLACK], [EMPTY, BLACK, BLACK, BLACK, BLACK]]
-patterns_black_return = [[4],[3],[2],[1],[0]]
 
-patterns_white_8captures = [[WHITE, WHITE, WHITE, WHITE, EMPTY], [WHITE, WHITE, WHITE, EMPTY, WHITE], [WHITE, WHITE, EMPTY, WHITE, WHITE], [WHITE, EMPTY, WHITE, WHITE, WHITE], [EMPTY, WHITE, WHITE, WHITE, WHITE], [WHITE, BLACK, BLACK, EMPTY], [EMPTY, BLACK, BLACK, WHITE]]
-patterns_white_8captures_return = [[4],[3],[2],[1],[0],[3],[0]]
-patterns_black_8captures = [[BLACK, BLACK, BLACK, BLACK, EMPTY], [BLACK, BLACK, BLACK, EMPTY, BLACK], [BLACK, BLACK, EMPTY, BLACK, BLACK], [BLACK, EMPTY, BLACK, BLACK, BLACK], [EMPTY, BLACK, BLACK, BLACK, BLACK], [BLACK,WHITE,WHITE,EMPTY], [EMPTY,WHITE,WHITE,BLACK]]
-patterns_black_8captures_return = [[4],[3],[2],[1],[0],[3],[0]]
+# Define patterns and the offsets in order to retrieve the empty square later on.
+WHITE_THREATS_NO_CAPTURE = [[WHITE, WHITE, WHITE, WHITE, EMPTY], [WHITE, WHITE, WHITE, EMPTY, WHITE],
+                            [WHITE, WHITE, EMPTY, WHITE, WHITE], [WHITE, EMPTY, WHITE, WHITE, WHITE],
+                            [EMPTY, WHITE, WHITE, WHITE, WHITE]]
+WHITE_THREATS_NO_CAPTURE_EMPTY_OFFSET = [[4], [3], [2], [1], [0]]
 
+BLACK_THREATS_NO_CAPTURE = [[BLACK, BLACK, BLACK, BLACK, EMPTY], [BLACK, BLACK, BLACK, EMPTY, BLACK],
+                            [BLACK, BLACK, EMPTY, BLACK, BLACK], [BLACK, EMPTY, BLACK, BLACK, BLACK],
+                            [EMPTY, BLACK, BLACK, BLACK, BLACK]]
+BLACK_THREATS_NO_CAPTURE_EMPTY_OFFSET = [[4], [3], [2], [1], [0]]
 
-patterns_white_2moves = [[EMPTY, WHITE, WHITE, WHITE, EMPTY, EMPTY],[EMPTY, WHITE, WHITE, EMPTY, WHITE, EMPTY],[EMPTY, WHITE, EMPTY, WHITE, WHITE, EMPTY], [EMPTY, EMPTY, WHITE, WHITE, WHITE, EMPTY]]
-patterns_white_2moves_return = [[4],[3],[2],[1]]
-patterns_black_2moves = [[EMPTY, BLACK, BLACK, BLACK, EMPTY, EMPTY],[EMPTY, BLACK, BLACK, EMPTY, BLACK, EMPTY],[EMPTY, BLACK, EMPTY, BLACK, BLACK, EMPTY], [EMPTY, EMPTY, BLACK, BLACK, BLACK, EMPTY]]
-patterns_black_2moves_return = [[4],[3],[2],[1]]
+WHITE_THREATS_WITH_CAPTURE = [[WHITE, WHITE, WHITE, WHITE, EMPTY], [WHITE, WHITE, WHITE, EMPTY, WHITE],
+                              [WHITE, WHITE, EMPTY, WHITE, WHITE], [WHITE, EMPTY, WHITE, WHITE, WHITE],
+                              [EMPTY, WHITE, WHITE, WHITE, WHITE], [WHITE, BLACK, BLACK, EMPTY],
+                              [EMPTY, BLACK, BLACK, WHITE]]
+WHITE_THREATS_WITH_CAPTURE_EMPTY_OFFSET = [[4], [3], [2], [1], [0], [3], [0]]
+
+BLACK_THREATS_WITH_CAPTURE = [[BLACK, BLACK, BLACK, BLACK, EMPTY], [BLACK, BLACK, BLACK, EMPTY, BLACK],
+                              [BLACK, BLACK, EMPTY, BLACK, BLACK], [BLACK, EMPTY, BLACK, BLACK, BLACK],
+                              [EMPTY, BLACK, BLACK, BLACK, BLACK], [BLACK, WHITE, WHITE, EMPTY],
+                              [EMPTY, WHITE, WHITE, BLACK]]
+BLACK_THREATS_WITH_CAPTURE_EMPTY_OFFSET = [[4], [3], [2], [1], [0], [3], [0]]
+
+WHITE_HEURISTIC_TO_CREATE_THREATS = [[EMPTY, WHITE, WHITE, WHITE, EMPTY, EMPTY], [EMPTY, WHITE, WHITE, EMPTY, WHITE, EMPTY],
+                                     [EMPTY, WHITE, EMPTY, WHITE, WHITE, EMPTY], [EMPTY, EMPTY, WHITE, WHITE, WHITE, EMPTY]]
+WHITE_HEURISTIC_EMPTY_OFFSET = [[4], [3], [2], [1]]
+
+BLACK_HEURISTIC_TO_CREATE_THREATS = [[EMPTY, BLACK, BLACK, BLACK, EMPTY, EMPTY], [EMPTY, BLACK, BLACK, EMPTY, BLACK, EMPTY],
+                                     [EMPTY, BLACK, EMPTY, BLACK, BLACK, EMPTY], [EMPTY, EMPTY, BLACK, BLACK, BLACK, EMPTY]]
+BLACK_HEURISTIC_EMPTY_OFFSET = [[4], [3], [2], [1]]
 
 # Build the Aho-Corasick Trie only once
-ac_trie_white = build_ac_trie(patterns_white)
-ac_trie_black = build_ac_trie(patterns_black)
+ac_trie_white_no_capture = build_ac_trie(WHITE_THREATS_NO_CAPTURE)
+ac_trie_black_no_capture = build_ac_trie(BLACK_THREATS_NO_CAPTURE)
 
-ac_trie_white_8captures = build_ac_trie(patterns_white_8captures)
-ac_trie_black_8captures = build_ac_trie(patterns_black_8captures)
+ac_trie_white_with_capture = build_ac_trie(WHITE_THREATS_WITH_CAPTURE)
+ac_trie_black_with_capture = build_ac_trie(BLACK_THREATS_WITH_CAPTURE)
 
-ac_trie_white_2moves = build_ac_trie(patterns_white_2moves)
-ac_trie_black_2moves = build_ac_trie(patterns_black_2moves)
-
-
+ac_trie_white_heuristic = build_ac_trie(WHITE_HEURISTIC_TO_CREATE_THREATS)
+ac_trie_black_heuristic = build_ac_trie(BLACK_HEURISTIC_TO_CREATE_THREATS)
 
 """
 The GoBoard class implements a board and basic functions to play
@@ -156,10 +166,11 @@ class GoBoard(object):
         self.calculate_rows_cols_diags()
         self.black_captures = 0
         self.white_captures = 0
-        #self.string_rep = None
-        #self.__repr__()
+        # self.string_rep = None
+        # self.__repr__()
         self.removed = None
         self.stack = []
+
     def __repr__(self):
         """
         Returns a number representation of the board with "w", "b", and "."
@@ -261,8 +272,8 @@ class GoBoard(object):
         self.calculate_rows_cols_diags()
         self.black_captures = 0
         self.white_captures = 0
-        #self.string_rep = None
-        #self.__repr__()
+        # self.string_rep = None
+        # self.__repr__()
         self.removed = None
 
     def copy(self) -> 'GoBoard':
@@ -277,8 +288,8 @@ class GoBoard(object):
         b.board = np.copy(self.board)
         b.black_captures = self.black_captures
         b.white_captures = self.white_captures
-        #b.string_rep = None
-        #b.__repr__()
+        # b.string_rep = None
+        # b.__repr__()
         b.removed = self.removed
         return b
 
@@ -441,7 +452,7 @@ class GoBoard(object):
         if self.board[point] != EMPTY:
             return False
         self.board[point] = color
-        #self.string_rep += int(color) * (4 ** int(point))  # Newly added
+        # self.string_rep += int(color) * (4 ** int(point))  # Newly added
         self.current_player = opponent(color)
         self.last2_move = self.last_move
         self.last_move = point
@@ -450,13 +461,13 @@ class GoBoard(object):
         self.removed = []
         for offset in offsets:
             if self.board[point + offset] == opp and self.board[point + (offset * 2)] == opp and self.board[
-                    point + (offset * 3)] == color:
+                point + (offset * 3)] == color:
                 self.removed.append((self.board[point + offset], point + offset, point + (offset * 2)))
                 self.board[point + offset] = EMPTY
                 self.board[point + (offset * 2)] = EMPTY
 
-                #self.string_rep -= int(self.removed[0]) * (4 ** int(point + offset))  # Newly added
-                #self.string_rep -= int(self.removed[0]) * (4 ** int(point + (offset * 2)))  # Newly added
+                # self.string_rep -= int(self.removed[0]) * (4 ** int(point + offset))  # Newly added
+                # self.string_rep -= int(self.removed[0]) * (4 ** int(point + (offset * 2)))  # Newly added
 
                 if color == BLACK:
                     self.black_captures += 2
@@ -560,16 +571,18 @@ class GoBoard(object):
                     return WHITE
 
         return EMPTY
+
     # Pattern is a string, "E" = Empty, "R" = Return vals, '.' = Placeholder, "B" = Black, "W" = White, "C" = color
 
     def convert(self):
-        #string = "".join(map(str, self.board[pos_array]))
-        #string = "".join(value.__str__() for value in self.board[pos_array])
+        # string = "".join(map(str, self.board[pos_array]))
+        # string = "".join(value.__str__() for value in self.board[pos_array])
 
         # {board_representation <- this must include capturing information: [1000, 7]}
-        #return self.board.tostring()
+        # return self.board.tostring()
         return hash(self.board.data.tobytes())
         # string = self.convert(r)
+
     def pattern_check(self, colour):
         return_array = []
         for r in self.rows:
@@ -579,7 +592,6 @@ class GoBoard(object):
                 return_array += result
 
         for c in self.cols:
-
 
             result = self.pattern_check_list(c, colour)
             if result:
@@ -592,42 +604,6 @@ class GoBoard(object):
                 return_array += result
 
         return return_array if len(return_array) > 0 else None
-
-        """return_array = []
-        for r in self.rows:
-            str = self.convert(r)
-            if colour == BLACK:
-                search = re.search(r'(b{4}e|b{3}eb|b{2}eb{2}|beb{3}|eb{4})', str)
-            else:
-                search = re.search(r'(w{4}e|w{3}ew|w{2}ew{2}|wew{3}|ew{4})', str)
-            if search:
-
-                result = self.pattern_check_list(r, colour)
-                return_array += result
-
-        for c in self.cols:
-            str = self.convert(c)
-            if colour == BLACK:
-                search = re.search(r'(b{4}e|b{3}eb|b{2}eb{2}|beb{3}|eb{4})', str)
-            else:
-                search = re.search(r'(w{4}e|w{3}ew|w{2}ew{2}|wew{3}|ew{4})', str)
-
-            if search:
-                result = self.pattern_check_list(c, colour)
-                return_array += result
-
-        for d in self.diags:
-            str = self.convert(d)
-            if colour == BLACK:
-                search = re.search(r'(b{4}e|b{3}eb|b{2}eb{2}|beb{3}|eb{4})', str)
-            else:
-                search = re.search(r'(w{4}e|w{3}ew|w{2}ew{2}|wew{3}|ew{4})', str)
-
-            if search:
-                result = self.pattern_check_list(d, colour)
-                return_array += result
-
-        return return_array if len(return_array) > 0 else None"""
 
     # Possibly change to KMP pattern matching
     def pattern_check_list(self, pos_array, colour):
@@ -648,18 +624,7 @@ class GoBoard(object):
                         return_array.append(pos_array[j])
         return return_array if len(return_array) > 0 else None
 
-        """THREAT_THRESHOLD = 4 if colour == BLACK else -4
-        return_array = []
 
-        array_to_check = self.board[pos_array]
-        divided_arr = np.lib.stride_tricks.sliding_window_view(array_to_check, 5)  # NEW IN NP 1.20. I double checked on lab machine, they have np 1.20.2 so it should work.
-        sum = np.sum(divided_arr, axis=1)
-        index = np.where(sum == THREAT_THRESHOLD)[0]
-
-        if len(index) > 0:
-            for i in index:
-                return_array.append(pos_array[i + np.where(divided_arr[i] == EMPTY)[0][0]])
-        return return_array if len(return_array) > 0 else None"""
     def capture_pattern_check(self, colour):
         possible_axes = [self.rows, self.cols, self.diags]
         for axis in possible_axes:
@@ -677,21 +642,26 @@ class GoBoard(object):
                 if colour == BLACK:
                     if re.search(r'ewwb', string):
                         for i in range(len(sub_board) - 4 + 1):
-                            if sub_board[i] == EMPTY and sub_board[i + 1] == WHITE and sub_board[i + 2] == WHITE and sub_board[i + 3] == BLACK:
+                            if sub_board[i] == EMPTY and sub_board[i + 1] == WHITE and sub_board[i + 2] == WHITE and \
+                                    sub_board[i + 3] == BLACK:
                                 return [pos_array[i]]
                     elif re.search(r'bwwe', string):
                         for i in range(len(sub_board) - 4 + 1):
-                            if sub_board[i] == BLACK and sub_board[i + 1] == WHITE and sub_board[i + 2] == WHITE and sub_board[i + 3] == EMPTY:
+                            if sub_board[i] == BLACK and sub_board[i + 1] == WHITE and sub_board[i + 2] == WHITE and \
+                                    sub_board[i + 3] == EMPTY:
                                 return [pos_array[i + 3]]
                 elif colour == WHITE:
                     if re.search(r'ebbw', string):
                         for i in range(len(sub_board) - 4 + 1):
-                            if sub_board[i] == EMPTY and sub_board[i + 1] == BLACK and sub_board[i + 2] == BLACK and sub_board[i + 3] == WHITE:
+                            if sub_board[i] == EMPTY and sub_board[i + 1] == BLACK and sub_board[i + 2] == BLACK and \
+                                    sub_board[i + 3] == WHITE:
                                 return [pos_array[i]]
                     elif re.search(r'wbbe', string):
                         for i in range(len(sub_board) - 4 + 1):
-                            if sub_board[i] == WHITE and sub_board[i + 1] == BLACK and sub_board[i + 2] == BLACK and sub_board[i + 3] == EMPTY:
+                            if sub_board[i] == WHITE and sub_board[i + 1] == BLACK and sub_board[i + 2] == BLACK and \
+                                    sub_board[i + 3] == EMPTY:
                                 return [pos_array[i + 3]]
+
     def undo(self):
         """    def play_move(self, point: GO_POINT, color: GO_COLOR) -> bool:
 
@@ -741,7 +711,6 @@ class GoBoard(object):
 
         self.board[point] = EMPTY
 
-
     def pattern_check_white(self):
         for r in self.rows:
             result = self.pattern_check_white_list(r)
@@ -758,12 +727,12 @@ class GoBoard(object):
         return False
 
     def pattern_check_white_list(self, list_inp):
-        pattern_index, position = aho_corasick_search_first(self.board[list_inp], ac_trie_white, patterns_white)
+        pattern_index, position = aho_corasick_search(self.board[list_inp], ac_trie_white_no_capture, WHITE_THREATS_NO_CAPTURE)
         if pattern_index == -1:
             return False
         else:
-            return [ list_inp[i+position] for i in patterns_white_return[pattern_index] ]
-        
+            return [list_inp[i + position] for i in WHITE_THREATS_NO_CAPTURE_EMPTY_OFFSET[pattern_index]]
+
     def pattern_check_black(self):
         for r in self.rows:
             result = self.pattern_check_black_list(r)
@@ -780,16 +749,13 @@ class GoBoard(object):
         return False
 
     def pattern_check_black_list(self, list_inp):
-        #print("CHECKING:",self.board[list_inp],patterns_black)
-        pattern_index, position = aho_corasick_search_first(self.board[list_inp], ac_trie_black, patterns_black)
+        # print("CHECKING:",self.board[list_inp],patterns_black)
+        pattern_index, position = aho_corasick_search(self.board[list_inp], ac_trie_black_no_capture, BLACK_THREATS_NO_CAPTURE)
         if pattern_index == -1:
             return False
         else:
-            #print("RAN THIS",pattern_index,position)
-            return [ list_inp[i+position] for i in patterns_black_return[pattern_index] ]
-        
-
-
+            # print("RAN THIS",pattern_index,position)
+            return [list_inp[i + position] for i in BLACK_THREATS_NO_CAPTURE_EMPTY_OFFSET[pattern_index]]
 
     def pattern_check_white_8captures(self):
         for r in self.rows:
@@ -807,12 +773,13 @@ class GoBoard(object):
         return False
 
     def pattern_check_white_8captures_list(self, list_inp):
-        pattern_index, position = aho_corasick_search_first(self.board[list_inp], ac_trie_white_8captures, patterns_white_8captures)
+        pattern_index, position = aho_corasick_search(self.board[list_inp], ac_trie_white_with_capture,
+                                                      WHITE_THREATS_WITH_CAPTURE)
         if pattern_index == -1:
             return False
         else:
-            return [ list_inp[i+position] for i in patterns_white_8captures_return[pattern_index] ]
-        
+            return [list_inp[i + position] for i in WHITE_THREATS_WITH_CAPTURE_EMPTY_OFFSET[pattern_index]]
+
     def pattern_check_black_8captures(self):
         for r in self.rows:
             result = self.pattern_check_black_8captures_list(r)
@@ -829,14 +796,12 @@ class GoBoard(object):
         return False
 
     def pattern_check_black_8captures_list(self, list_inp):
-        pattern_index, position = aho_corasick_search_first(self.board[list_inp], ac_trie_black_8captures, patterns_black_8captures)
+        pattern_index, position = aho_corasick_search(self.board[list_inp], ac_trie_black_with_capture,
+                                                      BLACK_THREATS_WITH_CAPTURE)
         if pattern_index == -1:
             return False
         else:
-            return [ list_inp[i+position] for i in patterns_black_8captures_return[pattern_index] ]
-        
-    
-
+            return [list_inp[i + position] for i in BLACK_THREATS_WITH_CAPTURE_EMPTY_OFFSET[pattern_index]]
 
     def pattern_check_white_2moves(self):
         for r in self.rows:
@@ -854,12 +819,13 @@ class GoBoard(object):
         return False
 
     def pattern_check_white_2moves_list(self, list_inp):
-        pattern_index, position = aho_corasick_search_first(self.board[list_inp], ac_trie_white_2moves, patterns_white_2moves)
+        pattern_index, position = aho_corasick_search(self.board[list_inp], ac_trie_white_heuristic,
+                                                      WHITE_HEURISTIC_TO_CREATE_THREATS)
         if pattern_index == -1:
             return False
         else:
-            return [ list_inp[i+position] for i in patterns_white_2moves_return[pattern_index] ]
-        
+            return [list_inp[i + position] for i in WHITE_HEURISTIC_EMPTY_OFFSET[pattern_index]]
+
     def pattern_check_black_2moves(self):
         for r in self.rows:
             result = self.pattern_check_black_2moves_list(r)
@@ -876,10 +842,11 @@ class GoBoard(object):
         return False
 
     def pattern_check_black_2moves_list(self, list_inp):
-        #print("CHECKING:",self.board[list_inp],patterns_black)
-        pattern_index, position = aho_corasick_search_first(self.board[list_inp], ac_trie_black_2moves, patterns_black_2moves)
+        # print("CHECKING:",self.board[list_inp],patterns_black)
+        pattern_index, position = aho_corasick_search(self.board[list_inp], ac_trie_black_heuristic,
+                                                      BLACK_HEURISTIC_TO_CREATE_THREATS)
         if pattern_index == -1:
             return False
         else:
-            #print("RAN THIS",pattern_index,position)
-            return [ list_inp[i+position] for i in patterns_black_2moves_return[pattern_index] ]
+            # print("RAN THIS",pattern_index,position)
+            return [list_inp[i + position] for i in BLACK_HEURISTIC_EMPTY_OFFSET[pattern_index]]
