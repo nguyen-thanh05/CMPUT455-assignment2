@@ -396,11 +396,46 @@ class GtpConnection:
         """ 
         Modify this function for Assignment 2.
         """
+        """
+                if color == BLACK:
+            # This part is for immediate win
+            check = self.board.pattern_check(BLACK)
+            check_block = self.board.pattern_check(WHITE)
+            if check_block:
+                if check:
+                    check += check_block
+                else:
+                    check = check_block
+        else:
+            check = self.board.pattern_check(WHITE)
+
+            check_block = self.board.pattern_check(BLACK)
+            if check_block:
+                if check:
+                    check += check_block
+                else:
+                    check = check_block
+        if check:
+            return check
+        else:
+            return self.board.get_empty_points()"""
         board_color = args[0].lower()
         color = color_to_int(board_color)
         self.startTime = time.time()
-        moves = self.get_moves(color)
+        moves = self.board.pattern_check(color)
 
+        if moves and len(moves) > 0:
+            self.board.play_move(moves[0], color)
+            self.respond(str(format_point(point_to_coord(moves[0], self.board.size))).lower())
+            return
+        else:
+            block_moves = self.board.pattern_check(opponent(color))
+            if block_moves and len(block_moves) == 1:
+                self.board.play_move(block_moves[0], color)
+                self.respond(str(format_point(point_to_coord(block_moves[0], self.board.size))).lower())
+                return
+
+        moves = self.get_moves(color)
         best_move = None
         if color == WHITE:
             best = 10000
@@ -483,9 +518,10 @@ class GtpConnection:
     def minimax(self, colour: GO_COLOR, alpha=-np.inf, beta=np.inf):
 
         board_eval = self.eval(self.board)
-        """if time.time() - self.startTime >= self.timelimit:
-            self.passed_time_threshold = True
-            return board_eval"""
+        if time.time() - self.startTime > self.timelimit:
+            print(self.startTime, time.time(), time.time() - self.startTime >= self.timelimit)
+            #self.passed_time_threshold = True
+
         if board_eval == 1000 or board_eval == -1000 or board_eval == 0:
             return board_eval
 
@@ -516,7 +552,6 @@ class GtpConnection:
 
     def solve_cmd(self, args: List[str]) -> None:
         color = self.board.current_player
-        self.startTime = time.time()
         moves = self.get_moves(color)
 
         best_move = None
@@ -525,6 +560,7 @@ class GtpConnection:
         else:
             best = -1000
 
+        self.startTime = time.time()
         for m in moves:
             self.board.play_move(m, color)
             val = self.minimax(opponent(color))

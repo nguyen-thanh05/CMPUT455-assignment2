@@ -10,7 +10,7 @@ Implements a basic Go board with functions to:
 
 The board uses a 1-dimensional representation with padding
 """
-
+import re
 import numpy as np
 from typing import List
 
@@ -448,6 +448,19 @@ class GoBoard(object):
 
     # Pattern is a string, "E" = Empty, "R" = Return vals, '.' = Placeholder, "B" = Black, "W" = White, "C" = color
 
+    def convert(self, pos_array):
+        #string = "".join(map(str, self.board[pos_array]))
+        #string = "".join(value.__str__() for value in self.board[pos_array])
+        string = ""
+        for value in self.board[pos_array]:
+            if value == 1:
+                string += "b"
+            elif value == -1:
+                string += "w"
+            else:
+                string += "e"
+        return string
+
     def pattern_check(self, colour):
         return_array = []
         for r in self.rows:
@@ -466,6 +479,42 @@ class GoBoard(object):
                 return_array += result
 
         return return_array if len(return_array) > 0 else None
+
+        """return_array = []
+        for r in self.rows:
+            str = self.convert(r)
+            if colour == BLACK:
+                search = re.search(r'(b{4}e|b{3}eb|b{2}eb{2}|beb{3}|eb{4})', str)
+            else:
+                search = re.search(r'(w{4}e|w{3}ew|w{2}ew{2}|wew{3}|ew{4})', str)
+            if search:
+
+                result = self.pattern_check_list(r, colour)
+                return_array += result
+
+        for c in self.cols:
+            str = self.convert(c)
+            if colour == BLACK:
+                search = re.search(r'(b{4}e|b{3}eb|b{2}eb{2}|beb{3}|eb{4})', str)
+            else:
+                search = re.search(r'(w{4}e|w{3}ew|w{2}ew{2}|wew{3}|ew{4})', str)
+
+            if search:
+                result = self.pattern_check_list(c, colour)
+                return_array += result
+
+        for d in self.diags:
+            str = self.convert(d)
+            if colour == BLACK:
+                search = re.search(r'(b{4}e|b{3}eb|b{2}eb{2}|beb{3}|eb{4})', str)
+            else:
+                search = re.search(r'(w{4}e|w{3}ew|w{2}ew{2}|wew{3}|ew{4})', str)
+
+            if search:
+                result = self.pattern_check_list(d, colour)
+                return_array += result
+
+        return return_array if len(return_array) > 0 else None"""
 
     # Possibly change to KMP pattern matching
     def pattern_check_list(self, pos_array, colour):
