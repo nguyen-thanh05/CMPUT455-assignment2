@@ -80,7 +80,7 @@ class GtpConnection:
             "gogui-analyze_commands": self.gogui_analyze_cmd,
             "timelimit": self.timelimit_cmd,
             "solve": self.solve_cmd,
-            "undo":self.undo_cmd
+            "undo": self.undo_cmd
         }
 
         # argmap is used for argument checking
@@ -373,7 +373,13 @@ class GtpConnection:
     Assignment 2 - game-specific commands you have to implement or modify
     ==========================================================================
     """
+
     def set_transposition(self, board, white_captures, black_captures, player_playing, who_won):
+        """Creates an entry in the transposition table, which is a dictionary of the hash of the board (string),
+        itself a key for a dictionary of other parameters, with keys equal to evaluated game values
+        """
+        # count 1-10
+
         if not self.passed_time_threshold:
             board_rep = board.convert()
             if board_rep in self.transposition:
@@ -381,10 +387,9 @@ class GtpConnection:
                     str(white_captures) + "_" + str(black_captures) + "_" + str(player_playing)] = who_won
             else:
                 self.transposition[board.convert()] = dict()
-                self.transposition[board.convert()][str(white_captures) + "_" + str(black_captures) + "_" + str(player_playing)] = who_won
-
-            #self.transposition[board_rep] = board_rep in self.transposition and self.transposition[board_rep] or dict()
-            #self.transposition[board.convert(board.board) + "_" + str(white_captures) + "_" + str(black_captures) + "_" + str(player_playing)] = who_won
+                self.transposition[board.convert()][str(white_captures) + "_" +
+                                                    str(black_captures) + "_" + str(player_playing)] = who_won
+        return
 
     def get_transposition(self, board, white_captures, black_captures, player_playing):
         """if np.array2string(board.board) + "_" + str(white_captures) + "_" + str(black_captures) + "_" + str(player_playing) in self.transposition:
@@ -399,40 +404,17 @@ class GtpConnection:
         """ 
         Modify this function for Assignment 2.
         """
-        """
-                if color == BLACK:
-            # This part is for immediate win
-            check = self.board.pattern_check(BLACK)
-            check_block = self.board.pattern_check(WHITE)
-            if check_block:
-                if check:
-                    check += check_block
-                else:
-                    check = check_block
-        else:
-            check = self.board.pattern_check(WHITE)
-
-            check_block = self.board.pattern_check(BLACK)
-            if check_block:
-                if check:
-                    check += check_block
-                else:
-                    check = check_block
-        if check:
-            return check
-        else:
-            return self.board.get_empty_points()"""
         board_color = args[0].lower()
         color = color_to_int(board_color)
         self.startTime = time.time()
-        moves = self.board.pattern_check(color)
+        moves = self.board.pattern_check_whole_board_convolve(color)
 
-        if moves and len(moves) > 0:
+        if moves and len(moves) > 0:  # Immediate 5 in a row win. No need to search
             self.board.play_move(moves[0], color)
             self.respond(str(format_point(point_to_coord(moves[0], self.board.size))).lower())
             return
-        else:
-            block_moves = self.board.pattern_check(opponent(color))
+        else:  # Immediate block enemy's 5 in a row, avoid searching.
+            block_moves = self.board.pattern_check_whole_board_convolve(opponent(color))
             if block_moves and len(block_moves) == 1:
                 self.board.play_move(block_moves[0], color)
                 self.respond(str(format_point(point_to_coord(block_moves[0], self.board.size))).lower())
@@ -477,7 +459,6 @@ class GtpConnection:
                 self.timelimit = timevar
         self.respond()
 
-    # self.transposition[self.board.size][self.board.get_captures(BLACK)][self.board.get_captures(WHITE)][self.board.__repr__()]
     def undo_cmd(self, args: List[str]) -> None:
         self.respond(str(self.board.stack))
         self.board.undo()
@@ -503,76 +484,55 @@ class GtpConnection:
                 # This part is for immediate win
 
                 if current_black_captures >= 8:
-                    check = self.board.pattern_check_black_8captures()
+                    check = self.board.pattern_check_black_whole_board_with_capture()
                 else:
-                    check = self.board.pattern_check_black()
+                    check = self.board.pattern_check_black_whole_board_no_capture()
 
-                
                 # This part is for block immediate win
                 if (not check) and current_white_captures >= 8:
-                    check = self.board.pattern_check_white_8captures()
-                elif (not check):
-                    check = self.board.pattern_check_white()
-                
-                
+                    check = self.board.pattern_check_white_whole_board_with_capture()
+                elif not check:
+                    check = self.board.pattern_check_white_whole_board_no_capture()
+
                 # 2 move wins
                 if (not check) and current_black_captures >= 8:
-                    check = self.board.pattern_check_black_2moves()
-                elif (not check):
-                    check = self.board.pattern_check_black_2moves()
-                
+                    check = self.board.pattern_check_black_whole_board_heuristic()
+                elif not check:
+                    check = self.board.pattern_check_black_whole_board_heuristic()
 
             else:
                 # This first part is for immediate win
 
                 if current_white_captures >= 8:
-                    check = self.board.pattern_check_white_8captures()
+                    check = self.board.pattern_check_white_whole_board_with_capture()
                 else:
-                    check = self.board.pattern_check_white()
+                    check = self.board.pattern_check_white_whole_board_no_capture()
 
-                
                 # This part is for block immediate win
                 if (not check) and current_black_captures >= 8:
-                    check = self.board.pattern_check_black_8captures()
-                elif (not check):
-                    pass#check = self.board.pattern_check_black()
-                
-                
+                    check = self.board.pattern_check_black_whole_board_with_capture()
+                elif not check:
+                    check = self.board.pattern_check_black_whole_board_no_capture()
+
                 # 2 move wins
                 if (not check) and current_white_captures >= 8:
-                    check = self.board.pattern_check_white_2moves()
-                elif (not check):
-                    check = self.board.pattern_check_white_2moves()
-            
-            
-        #print(check)
+                    check = self.board.pattern_check_white_whole_board_heuristic()
+                elif not check:
+                    check = self.board.pattern_check_white_whole_board_heuristic()
+
         if check:
             return check
         else:
             return self.board.get_empty_points()
 
-
-    def get_best_value(self, color, val_one, val_two):
-        if color == WHITE:
-            if self.white_priority[val_one] >= self.white_priority[val_two]:
-                return val_one
-            else:
-                return val_two
-        else:
-            if self.black_priority[val_one] >= self.black_priority[val_two]:
-                return val_one
-            else:
-                return val_two
-
-    def minimax(self, colour: GO_COLOR, alpha=-np.inf, beta=np.inf,depth = 0):
-        existed_state = self.get_transposition(self.board, self.board.white_captures, self.board.black_captures, self.board.current_player)
+    def minimax(self, colour: GO_COLOR, alpha=-np.inf, beta=np.inf, depth=0):
+        existed_state = self.get_transposition(self.board, self.board.white_captures, self.board.black_captures,
+                                               self.board.current_player)
         if existed_state:
             return existed_state
-        
 
         board_eval = self.eval(self.board)
         if time.time() - self.startTime > self.timelimit:
-            #print(self.startTime, time.time(), time.time() - self.startTime >= self.timelimit)
             self.passed_time_threshold = True
             return 0
         elif board_eval == 1000 or board_eval == -1000 or board_eval == 0:
@@ -584,13 +544,13 @@ class GtpConnection:
 
             for move in moves:
                 self.board.play_move(move, BLACK)
-                val = max(val, self.minimax(WHITE, alpha, beta,depth+1))
+                val = max(val, self.minimax(WHITE, alpha, beta, depth + 1))
                 self.board.undo()
                 alpha = max(alpha, val)
                 if val >= beta or val == 1000:
                     break
-            self.set_transposition(self.board, self.board.white_captures, self.board.black_captures, \
-                                       colour, val)
+            self.set_transposition(self.board, self.board.white_captures, self.board.black_captures,
+                                   colour, val)
             return val
 
         elif colour == WHITE:  # Minimising player
@@ -598,13 +558,13 @@ class GtpConnection:
             moves = self.get_moves(WHITE)
             for move in moves:
                 self.board.play_move(move, WHITE)
-                val = min(val, self.minimax(BLACK, alpha, beta,depth+1))
+                val = min(val, self.minimax(BLACK, alpha, beta, depth + 1))
                 self.board.undo()
                 beta = min(beta, val)
                 if val <= alpha or val == -1000:
                     break
-            self.set_transposition(self.board, self.board.white_captures, self.board.black_captures, \
-                                       colour, val)
+            self.set_transposition(self.board, self.board.white_captures, self.board.black_captures,
+                                   colour, val)
             return val
 
     def solve_cmd(self, args: List[str]) -> None:
@@ -629,7 +589,7 @@ class GtpConnection:
                     best_move = m
 
                 if val == -1000:
-                    self.set_transposition(self.board, self.board.white_captures, self.board.black_captures, \
+                    self.set_transposition(self.board, self.board.white_captures, self.board.black_captures,
                                            color, val)
                     break
             else:
@@ -638,7 +598,7 @@ class GtpConnection:
                     best_move = m
 
                 if val == 1000:
-                    self.set_transposition(self.board, self.board.white_captures, self.board.black_captures, \
+                    self.set_transposition(self.board, self.board.white_captures, self.board.black_captures,
                                            color, val)
                     break
         if best == -1000:
