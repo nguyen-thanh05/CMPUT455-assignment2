@@ -563,7 +563,7 @@ class GtpConnection:
                 leaf_val, _ = self.minimax(BLACK, False, alpha, beta)
 
                 val = self.get_best_value(color, val, leaf_val)
-                if leaf_val == val and (val == "draw" or val == "b"):
+                if leaf_val == val and (val == "draw" or val == "w"):
                     move_won = i
 
                 alpha = self.get_best_value(color, alpha, val)
