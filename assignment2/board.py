@@ -483,20 +483,16 @@ class GoBoard(object):
     def pattern_check(self, colour):
         return_array = []
         for r in self.rows:
-
             result = self.pattern_check_list(r, colour)
             if result:
                 return_array += result
 
         for c in self.cols:
-
-
             result = self.pattern_check_list(c, colour)
             if result:
                 return_array += result
 
         for d in self.diags:
-
             result = self.pattern_check_list(d, colour)
             if result:
                 return_array += result
@@ -542,34 +538,35 @@ class GoBoard(object):
     # Possibly change to KMP pattern matching
     def pattern_check_list(self, pos_array, colour):
         THREAT_THRESHOLD = 4 if colour == BLACK else -4
-        sum = 0
+        sum_value = 0
         return_array = []
         for i in range(len(pos_array) - 5 + 1):
             if i == 0:
                 for j in range(5):
-                    sum += self.board[pos_array[j]]
+                    prev_sum = sum_value
+                    sum_value += self.board[pos_array[j]]
+                    if colour == BLACK:
+                        if prev_sum > sum_value:
+                            break
+                    elif colour == WHITE:
+                        if prev_sum < sum_value:
+                            break
             else:
-                sum -= self.board[pos_array[i - 1]]
-                sum += self.board[pos_array[i - 1 + 5]]
-
-            if sum == THREAT_THRESHOLD:
+                prev_sum = sum_value
+                sum_value -= self.board[pos_array[i - 1]]
+                sum_value += self.board[pos_array[i - 1 + 5]]
+                if colour == BLACK:
+                    if prev_sum > sum_value:
+                        continue
+                elif colour == WHITE:
+                    if prev_sum < sum_value:
+                        continue
+            if sum_value == THREAT_THRESHOLD:
                 for j in range(i, i + 5):
                     if self.board[pos_array[j]] == EMPTY:
                         return_array.append(pos_array[j])
         return return_array if len(return_array) > 0 else None
 
-        """THREAT_THRESHOLD = 4 if colour == BLACK else -4
-        return_array = []
-
-        array_to_check = self.board[pos_array]
-        divided_arr = np.lib.stride_tricks.sliding_window_view(array_to_check, 5)  # NEW IN NP 1.20. I double checked on lab machine, they have np 1.20.2 so it should work.
-        sum = np.sum(divided_arr, axis=1)
-        index = np.where(sum == THREAT_THRESHOLD)[0]
-
-        if len(index) > 0:
-            for i in index:
-                return_array.append(pos_array[i + np.where(divided_arr[i] == EMPTY)[0][0]])
-        return return_array if len(return_array) > 0 else None"""
     def capture_pattern_check(self, colour):
         possible_axes = [self.rows, self.cols, self.diags]
         for axis in possible_axes:
@@ -585,21 +582,27 @@ class GoBoard(object):
                         string += "w"
 
                 if colour == BLACK:
-                    if re.search(r'ewwb', string):
-                        for i in range(len(sub_board) - 4 + 1):
-                            if sub_board[i] == EMPTY and sub_board[i + 1] == WHITE and sub_board[i + 2] == WHITE and sub_board[i + 3] == BLACK:
-                                return [pos_array[i]]
-                    elif re.search(r'bwwe', string):
-                        for i in range(len(sub_board) - 4 + 1):
+                    search = re.search(r'ewwb', string)
+                    if search:
+                        i = search.start()
+                        if sub_board[i] == EMPTY and sub_board[i + 1] == WHITE and sub_board[i + 2] == WHITE and sub_board[i + 3] == BLACK:
+                            return [pos_array[i]]
+                    else:
+                        search = re.search(r'bwwe', string)
+                        if search:
+                            i = search.start()
                             if sub_board[i] == BLACK and sub_board[i + 1] == WHITE and sub_board[i + 2] == WHITE and sub_board[i + 3] == EMPTY:
                                 return [pos_array[i + 3]]
                 elif colour == WHITE:
-                    if re.search(r'ebbw', string):
-                        for i in range(len(sub_board) - 4 + 1):
-                            if sub_board[i] == EMPTY and sub_board[i + 1] == BLACK and sub_board[i + 2] == BLACK and sub_board[i + 3] == WHITE:
-                                return [pos_array[i]]
-                    elif re.search(r'wbbe', string):
-                        for i in range(len(sub_board) - 4 + 1):
+                    search = re.search(r'ebbw', string)
+                    if search:
+                        i = search.start()
+                        if sub_board[i] == EMPTY and sub_board[i + 1] == BLACK and sub_board[i + 2] == BLACK and sub_board[i + 3] == WHITE:
+                            return [pos_array[i]]
+                    else:
+                        search = re.search(r'wbbe', string)
+                        if search:
+                            i = search.start()
                             if sub_board[i] == WHITE and sub_board[i + 1] == BLACK and sub_board[i + 2] == BLACK and sub_board[i + 3] == EMPTY:
                                 return [pos_array[i + 3]]
     def undo(self):

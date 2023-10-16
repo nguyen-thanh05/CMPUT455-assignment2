@@ -391,6 +391,7 @@ class GtpConnection:
         if board_rep in self.transposition:
             if str(white_captures) + "_" + str(black_captures) + "_" + str(player_playing) in self.transposition[board_rep]:
                 return self.transposition[board_rep][str(white_captures) + "_" + str(black_captures) + "_" + str(player_playing)]
+                
         return None
 
     def genmove_cmd(self, args: List[str]) -> None:
@@ -494,45 +495,34 @@ class GtpConnection:
     def get_moves(self, color):
         if color == BLACK:
             # This part is for immediate win
-            check = self.board.pattern_check(BLACK)
+
             if self.board.black_captures == 8:
                 check_capture = self.board.capture_pattern_check(BLACK)
-            else:
-                check_capture = None
-            if check_capture:
-                if check:
-                    check += check_capture
-                else:
-                    check = check_capture
+                if check_capture:
+                    return check_capture
+
+            check = self.board.pattern_check(BLACK)
+            if check:
+                return check
+
             check_block = self.board.pattern_check(WHITE)
             if check_block:
-                if check:
-                    check += check_block
-                else:
-                    check = check_block
+                return check_block
         else:
-            check = self.board.pattern_check(WHITE)
-
             if self.board.white_captures == 8:
                 check_capture = self.board.capture_pattern_check(WHITE)
-            else:
-                check_capture = None
-            if check_capture:
-                if check:
-                    check += check_capture
-                else:
-                    check = check_capture
+                if check_capture:
+                    return check_capture
+
+            check = self.board.pattern_check(WHITE)
+            if check:
+                return check
 
             check_block = self.board.pattern_check(BLACK)
             if check_block:
-                if check:
-                    check += check_block
-                else:
-                    check = check_block
-        if check:
-            return check
-        else:
-            return self.board.get_empty_points()
+                return check_block
+
+        return self.board.get_empty_points()
 
     def get_best_value(self, color, val_one, val_two):
         if color == WHITE:
@@ -553,10 +543,11 @@ class GtpConnection:
 
         board_eval = self.eval(self.board)
         if time.time() - self.startTime > self.timelimit:
-            #print(self.startTime, time.time(), time.time() - self.startTime >= self.timelimit)
-            self.passed_time_threshold = True
-            return 0
-        elif board_eval == 1000 or board_eval == -1000 or board_eval == 0:
+            print(self.startTime, time.time(), time.time() - self.startTime >= self.timelimit)
+            #self.passed_time_threshold = True
+            #return 0
+
+        if board_eval == 1000 or board_eval == -1000 or board_eval == 0:
             return board_eval
 
         if colour == BLACK:  # Maximising player
