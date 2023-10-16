@@ -445,15 +445,27 @@ class GtpConnection:
         for move in moves:
             self.board.play_move(move, color)
             val = self.minimax(opponent(color))
+            self.board.undo()
+
+            # if val is already winning, stop searching
             if color == WHITE:
                 if val < best:
                     best_move = move
                     best = val
+                    best_move = move
+
+                if val == -1000:
+                    break
             else:
                 if val > best:
                     best_move = move
                     best = val
-            self.board.undo()
+                    best_move = move
+
+                if val == 1000:
+                    break
+        self.set_transposition(self.board, self.board.white_captures, self.board.black_captures,
+                               color, val)
         self.board.play_move(best_move, color)
         self.respond(str(format_point(point_to_coord(best_move, self.board.size))).lower())
 
@@ -471,7 +483,8 @@ class GtpConnection:
         self.respond(str(self.board.stack))
 
     def eval(self, board):
-        five = board.detect_five_in_a_row()
+
+        five = board.dynamic_check_five_in_a_row()
         if board.get_captures(BLACK) >= 10 or five == BLACK:
             return 1000
         elif board.get_captures(WHITE) >= 10 or five == WHITE:
@@ -483,6 +496,15 @@ class GtpConnection:
         if color == BLACK:
             # This part is for immediate win
             check = self.board.pattern_check(BLACK)
+            if self.board.black_captures == 8:
+                check_capture = self.board.capture_pattern_check(BLACK)
+            else:
+                check_capture = None
+            if check_capture:
+                if check:
+                    check += check_capture
+                else:
+                    check = check_capture
             check_block = self.board.pattern_check(WHITE)
             if check_block:
                 if check:
@@ -491,6 +513,16 @@ class GtpConnection:
                     check = check_block
         else:
             check = self.board.pattern_check(WHITE)
+
+            if self.board.white_captures == 8:
+                check_capture = self.board.capture_pattern_check(WHITE)
+            else:
+                check_capture = None
+            if check_capture:
+                if check:
+                    check += check_capture
+                else:
+                    check = check_capture
 
             check_block = self.board.pattern_check(BLACK)
             if check_block:
@@ -519,10 +551,10 @@ class GtpConnection:
 
         board_eval = self.eval(self.board)
         if time.time() - self.startTime > self.timelimit:
-            print(self.startTime, time.time(), time.time() - self.startTime >= self.timelimit)
-            #self.passed_time_threshold = True
-
-        if board_eval == 1000 or board_eval == -1000 or board_eval == 0:
+            #print(self.startTime, time.time(), time.time() - self.startTime >= self.timelimit)
+            self.passed_time_threshold = True
+            return 0
+        elif board_eval == 1000 or board_eval == -1000 or board_eval == 0:
             return board_eval
 
         if colour == BLACK:  # Maximising player
@@ -568,12 +600,22 @@ class GtpConnection:
 
             if color == WHITE:
                 if val < best:
-                    best_move = m
                     best = val
+                    best_move = m
+
+                if val == -1000:
+                    self.set_transposition(self.board, self.board.white_captures, self.board.black_captures, \
+                                           color, val)
+                    break
             else:
                 if val > best:
-                    best_move = m
                     best = val
+                    best_move = m
+
+                if val == 1000:
+                    self.set_transposition(self.board, self.board.white_captures, self.board.black_captures, \
+                                           color, val)
+                    break
         if best == -1000:
             winner = 'w'
         elif best == 1000:

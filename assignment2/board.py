@@ -446,34 +446,57 @@ class GoBoard(object):
                 return WHITE
         return EMPTY
 
+    def dynamic_check_five_in_a_row(self):
+        point = self.stack[-1][0]
+        color = self.board[point]
+        north_south = [self.NS, -self.NS]
+        east_west = [1, -1]
+        ne_sw = [self.NS + 1, -self.NS - 1]
+        nw_se = [self.NS - 1, -self.NS + 1]
+
+        axes = [north_south, east_west, ne_sw, nw_se]
+
+        for axis in axes:
+            count = 1
+            for direction in axis:
+                current = point
+                while self.board[current + direction] == color and count <= 5:
+                    current += direction
+                    count += 1
+            if count >= 5:
+                if self.board[point] == BLACK:
+                    return BLACK
+                elif self.board[point] == WHITE:
+                    return WHITE
+
+        return EMPTY
     # Pattern is a string, "E" = Empty, "R" = Return vals, '.' = Placeholder, "B" = Black, "W" = White, "C" = color
 
-    def convert(self, pos_array):
+    def convert(self):
         #string = "".join(map(str, self.board[pos_array]))
         #string = "".join(value.__str__() for value in self.board[pos_array])
-        string = ""
-        for value in self.board[pos_array]:
-            if value == 1:
-                string += "b"
-            elif value == -1:
-                string += "w"
-            else:
-                string += "e"
-        return string
 
+        # {board_representation <- this must include capturing information: [1000, 7]}
+        #return self.board.tostring()
+        return hash(self.board.data.tobytes())
+        # string = self.convert(r)
     def pattern_check(self, colour):
         return_array = []
         for r in self.rows:
+
             result = self.pattern_check_list(r, colour)
             if result:
                 return_array += result
 
         for c in self.cols:
+
+
             result = self.pattern_check_list(c, colour)
             if result:
                 return_array += result
 
         for d in self.diags:
+
             result = self.pattern_check_list(d, colour)
             if result:
                 return_array += result
@@ -534,6 +557,7 @@ class GoBoard(object):
                     if self.board[pos_array[j]] == EMPTY:
                         return_array.append(pos_array[j])
         return return_array if len(return_array) > 0 else None
+
         """THREAT_THRESHOLD = 4 if colour == BLACK else -4
         return_array = []
 
@@ -546,7 +570,38 @@ class GoBoard(object):
             for i in index:
                 return_array.append(pos_array[i + np.where(divided_arr[i] == EMPTY)[0][0]])
         return return_array if len(return_array) > 0 else None"""
+    def capture_pattern_check(self, colour):
+        possible_axes = [self.rows, self.cols, self.diags]
+        for axis in possible_axes:
+            for pos_array in axis:
+                string = ""
+                sub_board = self.board[pos_array]
+                for value in sub_board:
+                    if value == 0:
+                        string += "e"
+                    elif value == 1:
+                        string += "b"
+                    elif value == -1:
+                        string += "w"
 
+                if colour == BLACK:
+                    if re.search(r'ewwb', string):
+                        for i in range(len(sub_board) - 4 + 1):
+                            if sub_board[i] == EMPTY and sub_board[i + 1] == WHITE and sub_board[i + 2] == WHITE and sub_board[i + 3] == BLACK:
+                                return [pos_array[i]]
+                    elif re.search(r'bwwe', string):
+                        for i in range(len(sub_board) - 4 + 1):
+                            if sub_board[i] == BLACK and sub_board[i + 1] == WHITE and sub_board[i + 2] == WHITE and sub_board[i + 3] == EMPTY:
+                                return [pos_array[i + 3]]
+                elif colour == WHITE:
+                    if re.search(r'ebbw', string):
+                        for i in range(len(sub_board) - 4 + 1):
+                            if sub_board[i] == EMPTY and sub_board[i + 1] == BLACK and sub_board[i + 2] == BLACK and sub_board[i + 3] == WHITE:
+                                return [pos_array[i]]
+                    elif re.search(r'wbbe', string):
+                        for i in range(len(sub_board) - 4 + 1):
+                            if sub_board[i] == WHITE and sub_board[i + 1] == BLACK and sub_board[i + 2] == BLACK and sub_board[i + 3] == EMPTY:
+                                return [pos_array[i + 3]]
     def undo(self):
         """    def play_move(self, point: GO_POINT, color: GO_COLOR) -> bool:
 
