@@ -449,8 +449,9 @@ class GtpConnection:
 
                 if val == 1000:
                     break
-        self.set_transposition(self.board, self.board.white_captures, self.board.black_captures,
-                               color, val)
+
+        if self.passed_time_threshold:
+            best_move = GoBoardUtil.generate_random_move(self.board, color, use_eye_filter=False)
         self.board.play_move(best_move, color)
         self.respond(str(format_point(point_to_coord(best_move, self.board.size))).lower())
 
@@ -592,8 +593,8 @@ class GtpConnection:
                     best_move = m
 
                 if val == -1000:
-                    self.set_transposition(self.board, self.board.white_captures, self.board.black_captures,
-                                           color, val)
+                    # self.set_transposition(self.board, self.board.white_captures, self.board.black_captures,
+                    #                        color, val)
                     break
             else:
                 if val > best:
@@ -601,8 +602,8 @@ class GtpConnection:
                     best_move = m
 
                 if val == 1000:
-                    self.set_transposition(self.board, self.board.white_captures, self.board.black_captures,
-                                           color, val)
+                    # self.set_transposition(self.board, self.board.white_captures, self.board.black_captures,
+                    #                        color, val)
                     break
         if best == -1000:
             winner = 'w'
