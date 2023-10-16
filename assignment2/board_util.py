@@ -79,10 +79,10 @@ class GoBoardUtil(object):
     def get_two_d_board(go_board: GoBoard) -> np.ndarray:
         """
         Return: numpy array
-        a two dimensional numpy array with the goboard.
+        a two-dimensional numpy array with the goboard.
         Shows stones and empty points as encoded in board_base.py.
         Result is not padded with BORDER points.
-        Rows 1..size of goboard are copied into rows 0..size - 1 of board2d
+        Rows 1...size of goboard are copied into rows 0...size - 1 of board2d
         Then the board is flipped up-down to be consistent with the
         coordinate system in GoGui (row 1 at the bottom).
         """

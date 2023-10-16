@@ -79,13 +79,14 @@ def where1d(condition: np.ndarray) -> np.ndarray:
 
 def coord_to_point(row: int, col: int, board_size: int) -> GO_POINT:
     """
-    Transform two dimensional (row, col) representation to array index.
+    Transform two-dimensional (row, col) representation to array index.
 
     Arguments
     ---------
     row, col:
              coordinates of the point, 1-based
              1 <= row, col <= board_size
+    board_size: length in cells of one side of a square board
     
     Map (row, col) coordinates to array index
     Below is an example of numbering points on a 3x3 board.

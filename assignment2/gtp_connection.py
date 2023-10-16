@@ -392,12 +392,14 @@ class GtpConnection:
         return
 
     def get_transposition(self, board, white_captures, black_captures, player_playing):
-        """if np.array2string(board.board) + "_" + str(white_captures) + "_" + str(black_captures) + "_" + str(player_playing) in self.transposition:
-            return self.transposition[board.convert(board.board) + "_" + str(white_captures) + "_" + str(black_captures) + "_" + str(player_playing)]"""
+        """Queries transposition table for value of game position
+        """
         board_rep = board.convert()
         if board_rep in self.transposition:
-            if str(white_captures) + "_" + str(black_captures) + "_" + str(player_playing) in self.transposition[board_rep]:
-                return self.transposition[board_rep][str(white_captures) + "_" + str(black_captures) + "_" + str(player_playing)]
+            if (str(white_captures) + "_" + str(black_captures) + "_" + str(player_playing) in
+                    self.transposition[board_rep]):
+                return self.transposition[board_rep][str(white_captures) + "_" + str(black_captures) + "_" +
+                                                     str(player_playing)]
         return None
 
     def genmove_cmd(self, args: List[str]) -> None:
@@ -465,7 +467,10 @@ class GtpConnection:
         self.respond(str(self.board.stack))
 
     def eval(self, board):
-
+        """
+        @param board: a goBoard
+        @return: value of the board: 1000 for a black win, -1000 for a white win, 0 for a draw
+        """
         five = board.dynamic_check_five_in_a_row()
         if board.get_captures(BLACK) >= 10 or five == BLACK:
             return 1000
@@ -482,7 +487,6 @@ class GtpConnection:
         if len(self.board.get_empty_points()) >= MINIMUM_POINTS_FOR_HEURISTIC:
             if color == BLACK:
                 # This part is for immediate win
-
                 if current_black_captures >= 8:
                     check = self.board.pattern_check_black_whole_board_with_capture()
                 else:
@@ -502,7 +506,6 @@ class GtpConnection:
 
             else:
                 # This first part is for immediate win
-
                 if current_white_captures >= 8:
                     check = self.board.pattern_check_white_whole_board_with_capture()
                 else:
@@ -652,7 +655,7 @@ def format_point(move: Tuple[int, int]) -> str:
 def move_to_coord(point_str: str, board_size: int) -> Tuple[int, int]:
     """
     Convert a string point_str representing a point, as specified by GTP,
-    to a pair of coordinates (row, col) in range 1 .. board_size.
+    to a pair of coordinates (row, col) in range 1 ... board_size.
     Raises ValueError if point_str is invalid
     """
     if not 2 <= board_size <= MAXSIZE:
